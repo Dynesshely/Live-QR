@@ -4,20 +4,60 @@
 
 ## 工作原理
 
-<pre>
-┌───────────────┐       HTTP POST        ┌────────────────┐       WebSocket       ┌───────────────┐
-│   上传端      │ ──────────────────────▶│    服务器      │ ─────────────────────▶│   观看端      │
-│  (浏览器扫码) │    /api/upload         │  Node.js + ws  │    text 消息          │  (浏览器展示) │
-│               │◀───────────────────────│                │◀──────────────────────│               │
-│  jsQR 解码    │    200 / 429 / 404     │  纯内存存储    │   heartbeat / pong    │  qrcode 渲染  │
-│  2 次/秒限流  │                        │  30min TTL     │   指数退避重连        │  256px H 级   │
-└───────────────┘                        └────────────────┘                       └───────────────┘
-                                               │
-                                          Caddy 反向代理
-                                          /api →       41601
-                                          /ws  →       41602
-                                          /*   →       静态文件
-</pre>
+### 系统架构
+
+```mermaid
+flowchart LR
+    A[📱 上传端<br/>摄像头 + jsQR]
+    S[🖥️ 服务器<br/>Node.js + ws<br/>纯内存存储]
+    V[💻 观看端<br/>qrcode 渲染]
+
+    Caddy[Caddy 反向代理]
+
+    A -->|POST /api/upload| Caddy
+    Caddy -->|/api/* :41601| S
+    V -->|wss:// /ws| Caddy
+    Caddy -->|/ws/* :41602| S
+    S -->|WebSocket text| V
+
+    Caddy -->|/* 静态文件| V
+```
+
+### 数据流时序
+
+```mermaid
+sequenceDiagram
+    participant App as 📱 上传端
+    participant Svr as 🖥️ 服务器
+    participant Web as 💻 观看端
+
+    App->>Svr: POST /api/channel/create
+    Svr-->>App: shareCode + expireAt
+    App->>App: 显示分享码
+
+    Web->>Svr: GET /api/channel/verify
+    Svr-->>Web: valid + latestText
+
+    Web->>Svr: WebSocket connect
+    Svr-->>Web: welcome + history
+
+    loop 扫码循环
+        App->>App: jsQR 解码 + 去重
+        App->>Svr: POST /api/upload
+        alt 频率超限
+            Svr-->>App: 429 RATE_LIMITED
+        else 正常
+            Svr-->>App: 200 ok
+            Svr-->>Web: text message
+            Web->>Web: 生成新二维码
+        end
+    end
+
+    loop 心跳
+        Svr-->>Web: heartbeat (30s)
+        Web-->>Svr: pong
+    end
+```
 
 ## 快速开始
 
