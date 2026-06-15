@@ -1,0 +1,17 @@
+services:
+  qr-live:
+    build: .
+    ports:
+      - "41605:80"
+    environment:
+      - PORT_HTTP=41601
+      - PORT_WS=41602
+      - CHANNEL_TTL_SECONDS=1800
+      - CLEANUP_INTERVAL_SECONDS=60
+      - UPLOAD_RATE_LIMIT=2
+      - MAX_VIEWERS_PER_CHANNEL=50
+      - VERIFY_RATE_LIMIT=10
+      - MAX_TEXT_LENGTH=2000
+      - CADDY_DOMAIN=
+      - CADDY_EMAIL=
+    restart: unless-stopped

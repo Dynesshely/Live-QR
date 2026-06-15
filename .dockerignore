@@ -1,0 +1,29 @@
+# Dependencies (installed inside Docker)
+**/node_modules
+**/.pnpm
+
+# Build output
+**/dist
+**/.vite
+
+# Git
+.git
+.gitignore
+
+# Logs & temp
+*.log
+*.tmp
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Env
+.env
+.env.local
+
+# IDE
+.idea
+.vscode
+*.swp
+*.swo
