@@ -1,4 +1,3 @@
-# HTTP only（摄像头扫码需要 HTTPS，请配置反向代理或使用下方 HTTPS 块）
 :80 {
 	handle /ws* {
 		reverse_proxy localhost:{$PORT_WS:41602} {
@@ -14,21 +13,3 @@
 		file_server
 	}
 }
-
-# HTTPS（有域名时启用，摄像头扫码必须走 HTTPS）
-# 修改下面的 example.com 为你的真实域名，并注释掉上面的 :80 块
-# example.com {
-# 	handle /ws* {
-# 		reverse_proxy localhost:{$PORT_WS:41602} {
-# 			flush_interval -1
-# 		}
-# 	}
-# 	handle /api/* {
-# 		reverse_proxy localhost:{$PORT_HTTP:41601}
-# 	}
-# 	handle {
-# 		root * /srv/web/dist
-# 		try_files {path} /index.html
-# 		file_server
-# 	}
-# }
