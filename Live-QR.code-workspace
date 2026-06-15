@@ -5,6 +5,6 @@
     },
   ],
   "settings": {
-    "git.autorefresh": false,
+    "git.autorefresh": true,
   },
 }
