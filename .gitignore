@@ -1,0 +1,34 @@
+# ── Dependencies ──
+node_modules/
+
+# ── Build output ──
+dist/
+.vite/
+*.tsbuildinfo
+
+# ── Environment (keep .env.example) ──
+.env
+.env.local
+.env.*.local
+
+# ── Logs & temp ──
+*.log
+pnpm-debug.log*
+*.tmp
+*.swp
+*.swo
+*~
+
+# ── OS generated ──
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+
+# ── IDE ──
+.idea/
+.vscode/
+*.sublime-*
