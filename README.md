@@ -1,22 +1,22 @@
-# QR-Live
+# Live QR
 
 实时二维码扫描与展示系统。上传端通过摄像头扫描二维码并解码为文本，观看端输入 8 位分享码后实时接收文本并重新渲染为二维码。
 
 ## 工作原理
 
 ```
-┌──────────────┐       HTTP POST        ┌────────────────┐       WebSocket       ┌──────────────┐
-│   上传端      │ ──────────────────────▶│    服务器       │ ──────────────────────▶│   观看端      │
-│  (浏览器扫码)  │    /api/upload         │  Node.js + ws   │    text 消息          │  (浏览器展示)  │
-│              │◀──────────────────────│                │◀──────────────────────│              │
-│  jsQR 解码   │    200 / 429 / 404     │  纯内存存储     │   heartbeat / pong    │  qrcode 渲染  │
-│  2 次/秒限流  │                        │  30min TTL      │   指数退避重连         │  256px H 级   │
-└──────────────┘                        └────────────────┘                        └──────────────┘
+┌───────────────┐       HTTP POST        ┌────────────────┐       WebSocket       ┌───────────────┐
+│   上传端      │ ──────────────────────▶│    服务器      │ ─────────────────────▶│   观看端      │
+│  (浏览器扫码) │    /api/upload         │  Node.js + ws  │    text 消息          │  (浏览器展示) │
+│               │◀───────────────────────│                │◀──────────────────────│               │
+│  jsQR 解码    │    200 / 429 / 404     │  纯内存存储    │   heartbeat / pong    │  qrcode 渲染  │
+│  2 次/秒限流  │                        │  30min TTL     │   指数退避重连        │  256px H 级   │
+└───────────────┘                        └────────────────┘                       └───────────────┘
                                                │
                                           Caddy 反向代理
-                                          /api → :41601
-                                          /ws  → :41602
-                                          /*   → 静态文件
+                                          /api →       41601
+                                          /ws  →       41602
+                                          /*   →       静态文件
 ```
 
 ## 快速开始
@@ -47,17 +47,15 @@ docker compose up -d
 # 访问 http://localhost:41605
 ```
 
-部署域名时，取消 `Caddyfile` 中 HTTPS 块的注释并设置 `CADDY_DOMAIN` 和 `CADDY_EMAIL` 环境变量，Caddy 会自动申请 Let's Encrypt 证书。
-
 ## 技术栈
 
-| 层级 | 技术 |
-|------|------|
-| 后端 | Node.js 22 + Express 5 + `ws` |
-| 前端 | Vue 3 + Vite 6 + Tailwind CSS 3 |
-| 二维码 | jsQR（解码）+ qrcode（生成） |
-| 反向代理 | Caddy（自动 HTTPS + WS 代理） |
-| 容器化 | Docker 三阶段构建（Node 22 Alpine） |
+| 层级     | 技术                                            |
+| -------- | ----------------------------------------------- |
+| 后端     | Node.js 22 + Express 5 + `ws`                   |
+| 前端     | Vue 3 + Vite 6 + Tailwind CSS 3                 |
+| 二维码   | jsQR（解码）+ qrcode（生成）                    |
+| 反向代理 | Caddy（自动 HTTPS + WS 代理）                   |
+| 容器化   | Docker 三阶段构建（Node 22 Alpine）             |
 | 数据存储 | 纯内存（`Map<string, ChannelState>`），无数据库 |
 
 ## 项目结构
@@ -115,7 +113,10 @@ Content-Type: application/json
 
 ```json
 // 201 Created
-{ "code": 201, "data": { "shareCode": "12345678", "expireAt": "...", "createdAt": "..." } }
+{
+  "code": 201,
+  "data": { "shareCode": "12345678", "expireAt": "...", "createdAt": "..." }
+}
 ```
 
 ### 文本上传
@@ -149,44 +150,44 @@ GET /api/channel/verify?shareCode=12345678
 wss://<host>/ws?shareCode=12345678
 ```
 
-| 消息类型 | 方向 | 说明 |
-|----------|------|------|
-| `welcome` | 服务端→客户端 | 连接成功，含 `viewerCount` |
-| `history` | 服务端→客户端 | 连接前最新文本 |
-| `text` | 服务端→客户端 | 新上传的文本（含时间戳） |
-| `heartbeat` | 服务端→客户端 | 每 30 秒心跳 |
-| `pong` | 客户端→服务端 | 心跳响应 |
-| `channel_expired` | 服务端→客户端 | 频道已过期 |
+| 消息类型          | 方向          | 说明                       |
+| ----------------- | ------------- | -------------------------- |
+| `welcome`         | 服务端→客户端 | 连接成功，含 `viewerCount` |
+| `history`         | 服务端→客户端 | 连接前最新文本             |
+| `text`            | 服务端→客户端 | 新上传的文本（含时间戳）   |
+| `heartbeat`       | 服务端→客户端 | 每 30 秒心跳               |
+| `pong`            | 客户端→服务端 | 心跳响应                   |
+| `channel_expired` | 服务端→客户端 | 频道已过期                 |
 
 关闭码：`4001` 频道不存在 / `4002` 观看者已满（最多 50 人）。
 
 ## 错误码
 
-| 状态码 | error | 说明 |
-|--------|-------|------|
-| 400 | `INVALID_SHARE_CODE` | 分享码格式无效（非 8 位数字） |
-| 400 | `TEXT_TOO_LONG` | 文本超过 2000 字符 |
-| 400 | `TEXT_EMPTY` | 文本为空 |
-| 400 | `INVALID_EXPIRE_SECONDS` | 过期时间超出 [60, 7200] |
-| 404 | `CHANNEL_NOT_FOUND` | 分享码不存在或已过期 |
-| 429 | `RATE_LIMITED` | 上传频率超限（2 次/秒） |
-| 429 | `VERIFY_RATE_LIMITED` | 验证频率超限（10 次/分钟/IP） |
-| 429 | `TOO_MANY_VIEWERS` | 观看者已满（50 人） |
+| 状态码 | error                    | 说明                          |
+| ------ | ------------------------ | ----------------------------- |
+| 400    | `INVALID_SHARE_CODE`     | 分享码格式无效（非 8 位数字） |
+| 400    | `TEXT_TOO_LONG`          | 文本超过 2000 字符            |
+| 400    | `TEXT_EMPTY`             | 文本为空                      |
+| 400    | `INVALID_EXPIRE_SECONDS` | 过期时间超出 [60, 7200]       |
+| 404    | `CHANNEL_NOT_FOUND`      | 分享码不存在或已过期          |
+| 429    | `RATE_LIMITED`           | 上传频率超限（2 次/秒）       |
+| 429    | `VERIFY_RATE_LIMITED`    | 验证频率超限（10 次/分钟/IP） |
+| 429    | `TOO_MANY_VIEWERS`       | 观看者已满（50 人）           |
 
 ## 环境变量
 
-| 变量 | 默认值 | 说明 |
-|------|--------|------|
-| `PORT_HTTP` | 41601 | HTTP API 端口 |
-| `PORT_WS` | 41602 | WebSocket 端口 |
-| `CHANNEL_TTL_SECONDS` | 1800 | 无上传过期时间（30 分钟） |
-| `CLEANUP_INTERVAL_SECONDS` | 60 | 过期清理间隔 |
-| `UPLOAD_RATE_LIMIT` | 2 | 每通道每秒最大上传 |
-| `MAX_VIEWERS_PER_CHANNEL` | 50 | 每通道最大观看者 |
-| `VERIFY_RATE_LIMIT` | 10 | 每 IP 每分钟最大验证 |
-| `MAX_TEXT_LENGTH` | 2000 | 上传文本最大字符数 |
-| `CADDY_DOMAIN` | — | 域名（用于 HTTPS） |
-| `CADDY_EMAIL` | — | Let's Encrypt 通知邮箱 |
+| 变量                       | 默认值 | 说明                      |
+| -------------------------- | ------ | ------------------------- |
+| `PORT_HTTP`                | 41601  | HTTP API 端口             |
+| `PORT_WS`                  | 41602  | WebSocket 端口            |
+| `CHANNEL_TTL_SECONDS`      | 1800   | 无上传过期时间（30 分钟） |
+| `CLEANUP_INTERVAL_SECONDS` | 60     | 过期清理间隔              |
+| `UPLOAD_RATE_LIMIT`        | 2      | 每通道每秒最大上传        |
+| `MAX_VIEWERS_PER_CHANNEL`  | 50     | 每通道最大观看者          |
+| `VERIFY_RATE_LIMIT`        | 10     | 每 IP 每分钟最大验证      |
+| `MAX_TEXT_LENGTH`          | 2000   | 上传文本最大字符数        |
+| `CADDY_DOMAIN`             | —      | 域名（用于 HTTPS）        |
+| `CADDY_EMAIL`              | —      | Let's Encrypt 通知邮箱    |
 
 ## 特性
 
