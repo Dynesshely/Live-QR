@@ -63,8 +63,14 @@ onMounted(async () => {
       >
         <div class="text-center text-gray-400 dark:text-gray-500">
           <svg class="w-12 h-12 mx-auto mb-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5"
-              d="M12 4v1m6 11h2m-6 0h-2m0 0H8m4-7V7m0 4h.01M6.5 6.5l.7.7m9.6 9.6l.7.7M4 12h1m14 0h1m-4 6l.7.7M5.8 18.2l.7-.7" />
+            <rect x="3" y="3" width="7" height="7" rx="1" stroke-width="1.5" />
+            <rect x="4.5" y="4.5" width="4" height="4" rx="0.5" stroke-width="1" />
+            <rect x="14" y="3" width="7" height="7" rx="1" stroke-width="1.5" />
+            <rect x="15.5" y="4.5" width="4" height="4" rx="0.5" stroke-width="1" />
+            <rect x="3" y="14" width="7" height="7" rx="1" stroke-width="1.5" />
+            <rect x="4.5" y="15.5" width="4" height="4" rx="0.5" stroke-width="1" />
+            <rect x="15" y="15" width="4" height="4" rx="1.5" stroke-width="1.5" />
+            <path d="M15 15l4 4" stroke-width="1.5" stroke-linecap="round" />
           </svg>
           <p class="text-sm">{{ t('viewer.qr.waiting') }}</p>
         </div>

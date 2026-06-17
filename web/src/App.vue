@@ -14,7 +14,7 @@ type AppMode = 'home' | 'scanner' | 'viewer';
 
 const { t } = useI18n();
 const { isDark, toggleTheme, resolvedTheme } = useTheme();
-const { cycleLocale, currentLabel } = useLocale();
+const { locale, setLocale, availableLocales, localeLabels } = useLocale();
 
 const mode = ref<AppMode>('home');
 
@@ -60,23 +60,37 @@ function translateError(err: string): string {
     v-if="mode === 'home'"
     class="min-h-screen bg-gray-50 dark:bg-gray-900 flex flex-col items-center justify-center px-4 relative"
   >
-    <!-- Theme toggle (top-right corner) -->
-    <button
-      class="absolute top-4 right-4 p-2.5 rounded-xl bg-white dark:bg-gray-800 shadow-md hover:shadow-lg transition-all text-gray-600 dark:text-gray-300 hover:text-gray-800 dark:hover:text-white"
-      :title="isDark ? t('theme.switchToLight') : t('theme.switchToDark')"
-      @click="toggleTheme"
-    >
-      <!-- Sun icon -->
-      <svg v-if="isDark" class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-          d="M12 3v1m0 16v1m9-9h-1M4 12H3m15.364 6.364l-.707-.707M6.343 6.343l-.707-.707m12.728 0l-.707.707M6.343 17.657l-.707.707M16 12a4 4 0 11-8 0 4 4 0 018 0z" />
-      </svg>
-      <!-- Moon icon -->
-      <svg v-else class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-          d="M20.354 15.354A9 9 0 018.646 3.646 9.003 9.003 0 0012 21a9.003 9.003 0 008.354-5.646z" />
-      </svg>
-    </button>
+    <!-- Theme + Language controls (top-right corner) -->
+    <div class="absolute top-4 right-4 flex items-center gap-2">
+      <!-- Language select -->
+      <select
+        :value="locale"
+        @change="setLocale(($event.target as HTMLSelectElement).value as 'zh' | 'en' | 'ja')"
+        class="appearance-none text-sm font-medium pl-3 pr-8 py-2 rounded-xl bg-white dark:bg-gray-800 shadow-md hover:shadow-lg transition-all text-gray-600 dark:text-gray-300 cursor-pointer border-0 outline-none focus:ring-2 focus:ring-blue-500"
+      >
+        <option v-for="loc in availableLocales" :key="loc" :value="loc">
+          {{ localeLabels[loc] }}
+        </option>
+      </select>
+
+      <!-- Theme toggle -->
+      <button
+        class="p-2.5 rounded-xl bg-white dark:bg-gray-800 shadow-md hover:shadow-lg transition-all text-gray-600 dark:text-gray-300 hover:text-gray-800 dark:hover:text-white"
+        :title="isDark ? t('theme.switchToLight') : t('theme.switchToDark')"
+        @click="toggleTheme"
+      >
+        <!-- Sun icon -->
+        <svg v-if="isDark" class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+            d="M12 3v1m0 16v1m9-9h-1M4 12H3m15.364 6.364l-.707-.707M6.343 6.343l-.707-.707m12.728 0l-.707.707M6.343 17.657l-.707.707M16 12a4 4 0 11-8 0 4 4 0 018 0z" />
+        </svg>
+        <!-- Moon icon -->
+        <svg v-else class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+            d="M20.354 15.354A9 9 0 018.646 3.646 9.003 9.003 0 0012 21a9.003 9.003 0 008.354-5.646z" />
+        </svg>
+      </button>
+    </div>
 
     <div class="text-center mb-10">
       <!-- Logo -->
@@ -197,12 +211,15 @@ function translateError(err: string): string {
             </button>
 
             <!-- Language switcher -->
-            <button
-              class="text-sm font-medium px-2 py-1 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors text-gray-600 dark:text-gray-300"
-              @click="cycleLocale"
+            <select
+              :value="locale"
+              @change="setLocale(($event.target as HTMLSelectElement).value as 'zh' | 'en' | 'ja')"
+              class="appearance-none text-sm font-medium pl-2 pr-7 py-1 rounded-lg bg-transparent hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors text-gray-600 dark:text-gray-300 cursor-pointer border-0 outline-none focus:ring-2 focus:ring-blue-500"
             >
-              {{ currentLabel }}
-            </button>
+              <option v-for="loc in availableLocales" :key="loc" :value="loc">
+                {{ localeLabels[loc] }}
+              </option>
+            </select>
 
             <!-- Theme toggle -->
             <button

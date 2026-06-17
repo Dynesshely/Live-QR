@@ -45,5 +45,12 @@ export function useLocale() {
     },
   );
 
-  return { locale: computed(() => i18n.locale.value as Locale), setLocale, cycleLocale, currentLabel, availableLocales };
+  return {
+    locale: computed(() => i18n.locale.value as Locale),
+    setLocale,
+    cycleLocale,
+    currentLabel,
+    availableLocales,
+    localeLabels: LOCALE_LABELS,
+  };
 }
