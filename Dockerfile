@@ -25,10 +25,8 @@ RUN pnpm build
 # ── Stage 3: Runtime ──
 FROM node:22-alpine AS runtime
 
-# Install Caddy
-RUN apk add --no-cache curl ca-certificates \
-    && curl -fsSL "https://caddyserver.com/api/download?os=linux&arch=amd64" -o /usr/bin/caddy \
-    && chmod +x /usr/bin/caddy
+# Install Caddy (from Alpine community repo, version-pinned and arch-aware)
+RUN apk add --no-cache caddy ca-certificates
 
 # Copy server build output (dist + node_modules for runtime deps)
 COPY --from=server-builder /build/server/dist /srv/server/

@@ -1,0 +1,27 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" fill="none">
+  <!-- Background rounded square -->
+  <rect x="4" y="4" width="56" height="56" rx="12" fill="#2563EB"/>
+
+  <!-- QR-like pattern: top-left finder -->
+  <rect x="12" y="12" width="12" height="12" rx="2" fill="white"/>
+  <rect x="15" y="15" width="6" height="6" rx="1" fill="#2563EB"/>
+
+  <!-- QR-like pattern: top-right finder -->
+  <rect x="40" y="12" width="12" height="12" rx="2" fill="white"/>
+  <rect x="43" y="15" width="6" height="6" rx="1" fill="#2563EB"/>
+
+  <!-- QR-like pattern: bottom-left finder -->
+  <rect x="12" y="40" width="12" height="12" rx="2" fill="white"/>
+  <rect x="15" y="43" width="6" height="6" rx="1" fill="#2563EB"/>
+
+  <!-- Live indicator dot -->
+  <circle cx="44" cy="46" r="3" fill="#22C55E"/>
+  <circle cx="44" cy="46" r="3" fill="#22C55E" opacity="0.4">
+    <animate attributeName="r" from="3" to="7" dur="1.5s" repeatCount="indefinite"/>
+    <animate attributeName="opacity" from="0.4" to="0" dur="1.5s" repeatCount="indefinite"/>
+  </circle>
+
+  <!-- Arrow (scan beam) -->
+  <path d="M34 34l8-8" stroke="white" stroke-width="2.5" stroke-linecap="round"/>
+  <path d="M36 26h6v6" stroke="white" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/>
+</svg>

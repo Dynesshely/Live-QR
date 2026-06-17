@@ -1,5 +1,8 @@
 import type { WebSocket } from 'ws';
 
+// Re-export config type (defined with zod in config.ts)
+export type { AppConfig } from './config.js';
+
 // ── Channel State ──
 
 export interface ChannelState {
@@ -110,17 +113,4 @@ export interface LogEntry {
   shareCode?: string;
   clientIp?: string;
   message: string;
-}
-
-// ── Config ──
-
-export interface AppConfig {
-  PORT_HTTP: number;
-  PORT_WS: number;
-  CHANNEL_TTL_SECONDS: number;
-  CLEANUP_INTERVAL_SECONDS: number;
-  UPLOAD_RATE_LIMIT: number;
-  MAX_VIEWERS_PER_CHANNEL: number;
-  VERIFY_RATE_LIMIT: number;
-  MAX_TEXT_LENGTH: number;
 }

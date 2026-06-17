@@ -1,24 +1,9 @@
 import { createServer } from 'node:http';
-import type { AppConfig } from './types.js';
+import { loadConfig } from './config.js';
 import { createApp } from './app.js';
 import { createWSServer } from './ws/handler.js';
 import { startCleanupTimer, stopCleanupTimer, shutdownAll } from './services/channelStore.js';
 import { logger } from './logger.js';
-
-// ── Configuration ──
-
-function loadConfig(): AppConfig {
-  return {
-    PORT_HTTP: parseInt(process.env.PORT_HTTP || '41601', 10),
-    PORT_WS: parseInt(process.env.PORT_WS || '41602', 10),
-    CHANNEL_TTL_SECONDS: parseInt(process.env.CHANNEL_TTL_SECONDS || '1800', 10),
-    CLEANUP_INTERVAL_SECONDS: parseInt(process.env.CLEANUP_INTERVAL_SECONDS || '60', 10),
-    UPLOAD_RATE_LIMIT: parseInt(process.env.UPLOAD_RATE_LIMIT || '2', 10),
-    MAX_VIEWERS_PER_CHANNEL: parseInt(process.env.MAX_VIEWERS_PER_CHANNEL || '50', 10),
-    VERIFY_RATE_LIMIT: parseInt(process.env.VERIFY_RATE_LIMIT || '10', 10),
-    MAX_TEXT_LENGTH: parseInt(process.env.MAX_TEXT_LENGTH || '2000', 10),
-  };
-}
 
 // ── Main ──
 
@@ -46,23 +31,37 @@ function main(): void {
 
   // ── Graceful shutdown ──
 
+  let shuttingDown = false;
+
   function shutdown(signal: string): void {
+    if (shuttingDown) return;
+    shuttingDown = true;
+
     logger.info('server_shutdown', `Received ${signal}, shutting down...`);
 
-    // Stop cleanup
+    // Stop accepting new channels
     stopCleanupTimer();
 
     // Close all WS connections and clear channels
     shutdownAll();
 
-    // Close WS server
-    wss.close(() => {
-      logger.info('server_shutdown', 'WebSocket server closed');
+    // Close both servers in parallel, then exit
+    const closeWS = new Promise<void>((resolve) => {
+      wss.close(() => {
+        logger.info('server_shutdown', 'WebSocket server closed');
+        resolve();
+      });
     });
 
-    // Close HTTP server
-    httpServer.close(() => {
-      logger.info('server_shutdown', 'HTTP server closed');
+    const closeHTTP = new Promise<void>((resolve) => {
+      httpServer.close(() => {
+        logger.info('server_shutdown', 'HTTP server closed');
+        resolve();
+      });
+    });
+
+    Promise.all([closeWS, closeHTTP]).then(() => {
+      logger.info('server_shutdown', 'All servers closed, exiting');
       process.exit(0);
     });
 

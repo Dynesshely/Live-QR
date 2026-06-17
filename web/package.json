@@ -7,7 +7,11 @@
     "dev": "vite",
     "build": "vue-tsc --noEmit && vite build",
     "preview": "vite preview",
-    "typecheck": "vue-tsc --noEmit"
+    "typecheck": "vue-tsc --noEmit",
+    "lint": "eslint src/",
+    "format": "prettier --write \"src/**/*.{ts,vue,css}\"",
+    "test": "vitest run",
+    "test:watch": "vitest"
   },
   "dependencies": {
     "jsqr": "^1.4.0",
@@ -15,13 +19,20 @@
     "vue": "^3.5.17"
   },
   "devDependencies": {
+    "@tailwindcss/vite": "^4.3.1",
     "@types/qrcode": "^1.5.6",
+    "@typescript-eslint/eslint-plugin": "^8.61.1",
+    "@typescript-eslint/parser": "^8.61.1",
     "@vitejs/plugin-vue": "^5.2.4",
-    "autoprefixer": "^10.4.22",
-    "postcss": "^8.5.6",
-    "tailwindcss": "^3.4.18",
+    "@vue/test-utils": "^2.4.11",
+    "eslint": "^10.5.0",
+    "eslint-config-prettier": "^10.1.8",
+    "happy-dom": "^20.10.4",
+    "prettier": "^3.8.4",
+    "tailwindcss": "^4.3.1",
     "typescript": "^5.9.3",
     "vite": "^6.3.6",
+    "vitest": "^4.1.9",
     "vue-tsc": "^2.2.12"
   }
 }
