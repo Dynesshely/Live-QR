@@ -1,29 +1,29 @@
 # Enhancements #1 — 技术栈改进
 
 **日期**: 2026-06-17  
-**状态**: ✅ 全部实施完成
+**状态**: [DONE] 全部实施完成
 
 ---
 
 ## 决策总览
 
-| # | 类别 | 改进项 | 决策 | 状态 |
-|---|------|--------|------|------|
-| 1 | 🔴 关键 | Dockerfile `pnpm-workspace.yaml` COPY 问题 | **跳过** — 文件用于 `pnpm approve-builds`，需保留 | — |
-| 2 | 🔴 关键 | Caddy 安装方式（curl 无版本/架构锁定） | **方案 A** — 改用 `apk add caddy`（Alpine 仓库，版本受控、架构自动适配） | ✅ |
-| 3 | 🟠 重要 | Caddyfile 仅 HTTP(:80)，无 HTTPS | **跳过** — 中央反代负责 SSL 证书，服务本身提供 HTTP 即可 | — |
-| 4 | 🟠 重要 | 缺少环境变量校验 | **引入 Zod** — 运行时校验 + 自动类型推导，非法配置立即报错 | ✅ |
-| 5 | 🟠 重要 | 缺少 `.env` 自动加载 | **添加 dotenv** — 本地开发自动读取 `.env` 文件 | ✅ |
-| 6 | 🟠 重要 | 无测试框架 | **引入 Vitest** — server 端 + supertest 集成测试，web 端 + happy-dom + @vue/test-utils | ✅ |
-| 7 | 🟠 重要 | 无代码规范工具 | **引入 ESLint + Prettier** — flat config，TS + Vue SFC 支持 | ✅ |
-| 8 | 🟡 改进 | jsQR 已停止维护 | **保持现状** — 功能稳定，无需替换 | — |
-| 9 | 🟡 改进 | HTTP / WS 两个独立端口 | **保持现状** — Caddy 代理已处理，无合并必要 | — |
-| 10 | 🟡 改进 | 安全响应头缺失 | **添加** — `X-Content-Type-Options`, `X-Frame-Options`, `Strict-Transport-Security` | ✅ |
-| 11 | 🟡 改进 | 静态资源无压缩 | **添加** — Caddyfile `encode gzip zstd` | ✅ |
-| 12 | 🟡 改进 | `index.html` 缺少 meta 标签 | **添加** — description, OG tags, theme-color, favicon.svg | ✅ |
-| 13 | 🟡 改进 | 优雅关闭竞态条件 | **修复** — `Promise.all` 并行关闭 WS + HTTP server，防重入 | ✅ |
-| 14 | 🟡 改进 | entrypoint.sh 未等待 server 就绪 | **跳过** | — |
-| 15 | 🟡 改进 | Tailwind CSS v3 → v4 | **升级** — CSS-first config，`@tailwindcss/vite` 插件，移除 PostCSS | ✅ |
+| #   | 类别   | 改进项                                     | 决策                                                                                   | 状态   |
+| --- | ------ | ------------------------------------------ | -------------------------------------------------------------------------------------- | ------ |
+| 1   | [CRIT] | Dockerfile `pnpm-workspace.yaml` COPY 问题 | **跳过** — 文件用于 `pnpm approve-builds`，需保留                                      | [SKIP] |
+| 2   | [CRIT] | Caddy 安装方式（curl 无版本/架构锁定）     | **方案 A** — 改用 `apk add caddy`（Alpine 仓库，版本受控、架构自动适配）               | [DONE] |
+| 3   | [IMPT] | Caddyfile 仅 HTTP(:80)，无 HTTPS           | **跳过** — 中央反代负责 SSL 证书，服务本身提供 HTTP 即可                               | [SKIP] |
+| 4   | [IMPT] | 缺少环境变量校验                           | **引入 Zod** — 运行时校验 + 自动类型推导，非法配置立即报错                             | [DONE] |
+| 5   | [IMPT] | 缺少 `.env` 自动加载                       | **添加 dotenv** — 本地开发自动读取 `.env` 文件                                         | [DONE] |
+| 6   | [IMPT] | 无测试框架                                 | **引入 Vitest** — server 端 + supertest 集成测试，web 端 + happy-dom + @vue/test-utils | [DONE] |
+| 7   | [IMPT] | 无代码规范工具                             | **引入 ESLint + Prettier** — flat config，TS + Vue SFC 支持                            | [DONE] |
+| 8   | [NICE] | jsQR 已停止维护                            | **保持现状** — 功能稳定，无需替换                                                      | [SKIP] |
+| 9   | [NICE] | HTTP / WS 两个独立端口                     | **保持现状** — Caddy 代理已处理，无合并必要                                            | [SKIP] |
+| 10  | [NICE] | 安全响应头缺失                             | **添加** — `X-Content-Type-Options`, `X-Frame-Options`, `Strict-Transport-Security`    | [DONE] |
+| 11  | [NICE] | 静态资源无压缩                             | **添加** — Caddyfile `encode gzip zstd`                                                | [DONE] |
+| 12  | [NICE] | `index.html` 缺少 meta 标签                | **添加** — description, OG tags, theme-color, favicon.svg                              | [DONE] |
+| 13  | [NICE] | 优雅关闭竞态条件                           | **修复** — `Promise.all` 并行关闭 WS + HTTP server，防重入                             | [DONE] |
+| 14  | [NICE] | entrypoint.sh 未等待 server 就绪           | **跳过**                                                                               | [SKIP] |
+| 15  | [NICE] | Tailwind CSS v3 → v4                       | **升级** — CSS-first config，`@tailwindcss/vite` 插件，移除 PostCSS                    | [DONE] |
 
 ---
 
@@ -32,21 +32,25 @@
 ### 1. Zod 环境变量校验 (`server/src/config.ts`)
 
 ```typescript
-import 'dotenv/config';
-import { z } from 'zod';
+import "dotenv/config";
+import { z } from "zod";
 
 const numberFromEnv = (def: string, min: number, max: number) =>
-  z.string().default(def).transform(Number).pipe(z.number().int().min(min).max(max));
+  z
+    .string()
+    .default(def)
+    .transform(Number)
+    .pipe(z.number().int().min(min).max(max));
 
 export const appConfigSchema = z.object({
-  PORT_HTTP:                numberFromEnv('41601', 1, 65535),
-  PORT_WS:                  numberFromEnv('41602', 1, 65535),
-  CHANNEL_TTL_SECONDS:      numberFromEnv('1800', 60, 86400),
-  CLEANUP_INTERVAL_SECONDS: numberFromEnv('60', 10, 3600),
-  UPLOAD_RATE_LIMIT:        numberFromEnv('2', 1, 100),
-  MAX_VIEWERS_PER_CHANNEL:  numberFromEnv('50', 1, 500),
-  VERIFY_RATE_LIMIT:        numberFromEnv('10', 1, 1000),
-  MAX_TEXT_LENGTH:          numberFromEnv('2000', 1, 10000),
+  PORT_HTTP: numberFromEnv("41601", 1, 65535),
+  PORT_WS: numberFromEnv("41602", 1, 65535),
+  CHANNEL_TTL_SECONDS: numberFromEnv("1800", 60, 86400),
+  CLEANUP_INTERVAL_SECONDS: numberFromEnv("60", 10, 3600),
+  UPLOAD_RATE_LIMIT: numberFromEnv("2", 1, 100),
+  MAX_VIEWERS_PER_CHANNEL: numberFromEnv("50", 1, 500),
+  VERIFY_RATE_LIMIT: numberFromEnv("10", 1, 1000),
+  MAX_TEXT_LENGTH: numberFromEnv("2000", 1, 10000),
 });
 ```
 
@@ -91,28 +95,30 @@ RUN apk add --no-cache caddy ca-certificates
 
 ### 5. Tailwind CSS v4 升级
 
-| 变更 | v3 | v4 |
-|------|----|----|
-| CSS 入口 | `@tailwind base/components/utilities` | `@import "tailwindcss"` |
-| 配置方式 | `tailwind.config.js` + `postcss.config.js` | CSS-first（无 JS 配置文件） |
-| Vite 集成 | PostCSS 插件 | `@tailwindcss/vite` 原生 Vite 插件 |
-| 暗色模式 | `tailwind.config.js` 中 `darkMode: 'class'` | `@variant dark (...)` in CSS |
+| 变更      | v3                                          | v4                                 |
+| --------- | ------------------------------------------- | ---------------------------------- |
+| CSS 入口  | `@tailwind base/components/utilities`       | `@import "tailwindcss"`            |
+| 配置方式  | `tailwind.config.js` + `postcss.config.js`  | CSS-first（无 JS 配置文件）        |
+| Vite 集成 | PostCSS 插件                                | `@tailwindcss/vite` 原生 Vite 插件 |
+| 暗色模式  | `tailwind.config.js` 中 `darkMode: 'class'` | `@variant dark (...)` in CSS       |
 
 ### 6. 测试覆盖
 
 **Server (37 tests)**:
-| 模块 | 测试文件 | 测试数 |
-|------|---------|--------|
-| Config (Zod) | `config.test.ts` | 5 |
-| Channel Store | `channelStore.test.ts` | 18 |
-| Rate Limiter | `rateLimiter.test.ts` | 8 |
-| Channel Routes | `channel.test.ts` | 6 |
-| Upload Routes | `upload.test.ts` | 6 |
+
+| 模块           | 测试文件               | 测试数 |
+| -------------- | ---------------------- | ------ |
+| Config (Zod)   | `config.test.ts`       | 5      |
+| Channel Store  | `channelStore.test.ts` | 18     |
+| Rate Limiter   | `rateLimiter.test.ts`  | 8      |
+| Channel Routes | `channel.test.ts`      | 6      |
+| Upload Routes  | `upload.test.ts`       | 6      |
 
 **Web (4 tests)**:
-| 模块 | 测试文件 | 测试数 |
-|------|---------|--------|
-| QR Code | `useQRCode.test.ts` | 4 |
+
+| 模块    | 测试文件            | 测试数 |
+| ------- | ------------------- | ------ |
+| QR Code | `useQRCode.test.ts` | 4      |
 
 ### 7. Logo / Favicon
 
