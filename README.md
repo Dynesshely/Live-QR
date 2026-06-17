@@ -101,17 +101,17 @@ docker compose up -d
 
 ## 技术栈
 
-| 层级       | 技术                                                    |
-| ---------- | ------------------------------------------------------- |
-| 后端       | Node.js 22 + Express 5 + `ws`                           |
-| 前端       | Vue 3 + Vite 6 + Tailwind CSS 4（CSS-first）            |
-| 配置校验   | Zod + dotenv（启动时校验，非法值立即报错）              |
-| 二维码     | jsQR（解码）+ qrcode（生成）                            |
-| 代码规范   | ESLint（flat config）+ Prettier                         |
-| 测试       | Vitest + supertest（server）/ happy-dom（web）          |
-| 反向代理   | Caddy（安全头 + gzip/zstd 压缩）                        |
-| 容器化     | Docker 三阶段构建（Node 22 Alpine，Caddy via apk）      |
-| 数据存储   | 纯内存（`Map<string, ChannelState>`），无数据库         |
+| 层级     | 技术                                               |
+| -------- | -------------------------------------------------- |
+| 后端     | Node.js 22 + Express 5 + `ws`                      |
+| 前端     | Vue 3 + Vite 6 + Tailwind CSS 4（CSS-first）       |
+| 配置校验 | Zod + dotenv（启动时校验，非法值立即报错）         |
+| 二维码   | jsQR（解码）+ qrcode（生成）                       |
+| 代码规范 | ESLint（flat config）+ Prettier                    |
+| 测试     | Vitest + supertest（server）/ happy-dom（web）     |
+| 反向代理 | Caddy（安全头 + gzip/zstd 压缩）                   |
+| 容器化   | Docker 三阶段构建（Node 22 Alpine，Caddy via apk） |
+| 数据存储 | 纯内存（`Map<string, ChannelState>`），无数据库    |
 
 ## 项目结构
 
@@ -218,13 +218,13 @@ wss://<host>/ws?shareCode=12345678
 
 **服务端 → 客户端：**
 
-| 消息类型          | 说明                       | 附带字段                          |
-| ----------------- | -------------------------- | --------------------------------- |
-| `welcome`         | 连接成功                   | `shareCode`, `viewerCount`        |
-| `history`         | 连接前最新文本（≤1 条）    | `messages[]`                      |
-| `text`            | 新上传的文本               | `data`, `timestamp`（Unix ms）    |
-| `heartbeat`       | 心跳（每 30 秒）           | `serverTime`                      |
-| `channel_expired` | 频道已过期                 | `message`                         |
+| 消息类型          | 说明                    | 附带字段                       |
+| ----------------- | ----------------------- | ------------------------------ |
+| `welcome`         | 连接成功                | `shareCode`, `viewerCount`     |
+| `history`         | 连接前最新文本（≤1 条） | `messages[]`                   |
+| `text`            | 新上传的文本            | `data`, `timestamp`（Unix ms） |
+| `heartbeat`       | 心跳（每 30 秒）        | `serverTime`                   |
+| `channel_expired` | 频道已过期              | `message`                      |
 
 **客户端 → 服务端：**
 
@@ -234,12 +234,13 @@ wss://<host>/ws?shareCode=12345678
 
 **关闭码：**
 
-| 关闭码 | 含义                         |
-| ------ | ---------------------------- |
-| 4001   | 频道不存在或已过期           |
-| 4002   | 观看者已满（最多 50 人）     |
+| 关闭码 | 含义                     |
+| ------ | ------------------------ |
+| 4001   | 频道不存在或已过期       |
+| 4002   | 观看者已满（最多 50 人） |
 
 **心跳策略：**
+
 - 服务端每 30 秒发送 `heartbeat`
 - 客户端 60 秒无消息判定断线，触发重连
 - 服务端连续 3 次 heartbeat 未收到 pong（90 秒），主动断开
@@ -261,18 +262,18 @@ wss://<host>/ws?shareCode=12345678
 
 ## 环境变量
 
-| 变量                       | 默认值 | 说明                          |
-| -------------------------- | ------ | ----------------------------- |
-| `PORT_HTTP`                | 41601  | HTTP API 端口                 |
-| `PORT_WS`                  | 41602  | WebSocket 端口                |
-| `CHANNEL_TTL_SECONDS`      | 1800   | 无上传过期时间（30 分钟）     |
-| `CLEANUP_INTERVAL_SECONDS` | 60     | 过期清理间隔                  |
-| `UPLOAD_RATE_LIMIT`        | 2      | 每通道每秒最大上传            |
-| `MAX_VIEWERS_PER_CHANNEL`  | 50     | 每通道最大观看者              |
-| `VERIFY_RATE_LIMIT`        | 10     | 每 IP 每分钟最大验证          |
-| `MAX_TEXT_LENGTH`          | 2000   | 上传文本最大字符数            |
-| `CADDY_DOMAIN`             | —      | 域名（用于 HTTPS）            |
-| `CADDY_EMAIL`              | —      | Let's Encrypt 通知邮箱        |
+| 变量                       | 默认值 | 说明                      |
+| -------------------------- | ------ | ------------------------- |
+| `PORT_HTTP`                | 41601  | HTTP API 端口             |
+| `PORT_WS`                  | 41602  | WebSocket 端口            |
+| `CHANNEL_TTL_SECONDS`      | 1800   | 无上传过期时间（30 分钟） |
+| `CLEANUP_INTERVAL_SECONDS` | 60     | 过期清理间隔              |
+| `UPLOAD_RATE_LIMIT`        | 2      | 每通道每秒最大上传        |
+| `MAX_VIEWERS_PER_CHANNEL`  | 50     | 每通道最大观看者          |
+| `VERIFY_RATE_LIMIT`        | 10     | 每 IP 每分钟最大验证      |
+| `MAX_TEXT_LENGTH`          | 2000   | 上传文本最大字符数        |
+| `CADDY_DOMAIN`             | —      | 域名（用于 HTTPS）        |
+| `CADDY_EMAIL`              | —      | Let's Encrypt 通知邮箱    |
 
 > 环境变量经 Zod schema 校验，非法值（如 `PORT_HTTP=abc`）将在启动时立即报错退出。
 
