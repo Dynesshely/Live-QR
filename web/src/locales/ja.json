@@ -1,0 +1,98 @@
+{
+  "common": {
+    "back": "← 戻る",
+    "home": "← ホーム",
+    "retry": "再試行",
+    "copy": "コピー",
+    "stop": "スキャン停止"
+  },
+  "home": {
+    "subtitle": "リアルタイムQRコードスキャン・表示システム",
+    "scanner": {
+      "title": "アップロード側",
+      "description": "カメラでQRコードをスキャンしてアップロード"
+    },
+    "viewer": {
+      "title": "閲覧側",
+      "description": "共有コードを入力してリアルタイムQRコードを表示"
+    }
+  },
+  "scanner": {
+    "starting": "カメラを起動中...",
+    "autoRebuilt": "セッションが期限切れになりました。自動的に再作成されました",
+    "shareCode": "共有コード",
+    "offlineQueue": "ネットワーク異常、データは復旧後に再送信されます（キャッシュ {count}/{max}）",
+    "uploadCount": "アップロード済み：{count} 件",
+    "status": {
+      "scanning": "スキャン中",
+      "starting": "起動中",
+      "error": "エラー"
+    },
+    "upload": {
+      "success": "✓ アップロード成功",
+      "failed": "✗ {detail}",
+      "rateLimited": "⏳ レート制限待機中",
+      "result": {
+        "channel_expired": "チャンネルが期限切れです",
+        "rate_limited": "アップロードレート制限",
+        "upload_failed": "アップロード失敗",
+        "network_error_cached": "ネットワークエラー、キャッシュ済み"
+      }
+    },
+    "error": {
+      "cameraFailed": "カメラの起動に失敗しました",
+      "startFailed": "起動に失敗しました",
+      "notSecure": "カメラはHTTPSまたはlocalhostでのみ利用可能です。HTTPSでアクセスしてください。",
+      "noCameraApi": "このブラウザはカメラアクセスをサポートしていません。最新のChrome、Edge、またはSafariをHTTPSで使用してください。",
+      "permissionDenied": "カメラの権限が拒否されました。ブラウザ設定でカメラアクセスを許可してください。",
+      "cameraGeneric": "カメラにアクセスできません: {detail}",
+      "createChannelFailed": "共有コードの作成に失敗しました",
+      "rebuildFailed": "共有コードの期限切れ、再作成に失敗しました"
+    }
+  },
+  "viewer": {
+    "expiredBanner": "この共有コードは期限切れです（30分間アップロードなし）",
+    "reenterCode": "共有コードを再入力",
+    "switchCode": "共有コードを切り替え",
+    "input": {
+      "subtitle": "リアルタイムQRコード表示システム",
+      "label": "8桁の共有コードを入力",
+      "submit": "表示開始",
+      "hint": "アプリユーザーに8桁の共有コードを確認してください"
+    },
+    "qr": {
+      "waiting": "データ待機中...",
+      "reconnecting": "再接続中...（{attempt}/{max} 回目）",
+      "expired": "この共有コードは期限切れです",
+      "enterNewCode": "新しい共有コードを入力してください",
+      "currentText": "現在のテキスト内容"
+    },
+    "status": {
+      "unconnected": "未接続",
+      "verifying": "検証中...",
+      "waitingData": "データ待機中...",
+      "connected": "接続済み",
+      "viewerCount": "（{count} 人が視聴中）",
+      "reconnecting": "接続が切断されました、再接続中...（{attempt}/{max} 回目）",
+      "expired": "チャンネル期限切れ"
+    },
+    "history": {
+      "title": "履歴",
+      "count": "{count} 件",
+      "empty": "まだデータがありません"
+    },
+    "error": {
+      "invalidCode": "共有コードが無効または期限切れです",
+      "roomFull": "このチャンネルは最大人数（50人）に達しました。しばらくしてから再試行してください。",
+      "connectFailed": "接続に失敗しました（5回再試行）。ネットワークを確認して再入力してください。",
+      "codeNotFound": "共有コードが見つからないか期限切れです",
+      "rateLimited": "検証リクエストが多すぎます。しばらくしてから再試行してください",
+      "verifyFailed": "検証に失敗しました",
+      "networkError": "ネットワークエラー、共有コードを検証できません"
+    }
+  },
+  "theme": {
+    "switchToDark": "ダークモードに切り替え",
+    "switchToLight": "ライトモードに切り替え"
+  }
+}

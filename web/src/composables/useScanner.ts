@@ -135,15 +135,11 @@ export function useScanner() {
     videoEl = videoElement;
 
     if (!window.isSecureContext) {
-      throw new Error(
-        '摄像头仅在安全连接下可用（HTTPS 或 localhost）。当前为 HTTP 连接，请使用 HTTPS 访问此页面。'
-      );
+      throw new Error('scanner.error.notSecure');
     }
 
     if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
-      throw new Error(
-        '当前浏览器不支持摄像头访问。请使用最新版 Chrome、Edge 或 Safari，并通过 HTTPS 访问。'
-      );
+      throw new Error('scanner.error.noCameraApi');
     }
 
     try {
@@ -180,11 +176,10 @@ export function useScanner() {
       canvasEl!.width = Math.floor(w * scale);
       canvasEl!.height = Math.floor(h * scale);
     } catch (err) {
-      const msg =
-        err instanceof DOMException && err.name === 'NotAllowedError'
-          ? '摄像头权限被拒绝，请在浏览器设置中允许访问摄像头'
-          : `无法访问摄像头: ${err instanceof Error ? err.message : String(err)}`;
-      throw new Error(msg);
+      if (err instanceof DOMException && err.name === 'NotAllowedError') {
+        throw new Error('scanner.error.permissionDenied');
+      }
+      throw new Error(`scanner.error.cameraGeneric::${err instanceof Error ? err.message : String(err)}`);
     }
   }
 
@@ -232,7 +227,7 @@ export function useScanner() {
 
   async function createChannel(): Promise<{ shareCode: string; expireAt: string }> {
     const resp = await fetch('/api/channel/create', { method: 'POST' });
-    if (!resp.ok) throw new Error('创建分享码失败');
+    if (!resp.ok) throw new Error('scanner.error.createChannelFailed');
     const data = await resp.json();
     return { shareCode: data.data.shareCode, expireAt: data.data.expireAt };
   }
@@ -257,13 +252,13 @@ export function useScanner() {
 
       if (resp.status === 404) {
         state.value.lastUploadResult = 'failed';
-        state.value.lastUploadResultText = '通道已过期';
+        state.value.lastUploadResultText = 'scanner.upload.result.channel_expired';
         return 'expired';
       }
 
       if (resp.status === 429) {
         state.value.lastUploadResult = 'rate_limited';
-        state.value.lastUploadResultText = '上传频率限制';
+        state.value.lastUploadResultText = 'scanner.upload.result.rate_limited';
         return 'ok'; // Still "ok" for flow control — will be throttled
       }
 
@@ -278,12 +273,12 @@ export function useScanner() {
       }
 
       state.value.lastUploadResult = 'failed';
-      state.value.lastUploadResultText = '上传失败';
+      state.value.lastUploadResultText = 'scanner.upload.result.upload_failed';
       return 'error';
     } catch {
       // Network error — queue for offline retry
       state.value.lastUploadResult = 'failed';
-      state.value.lastUploadResultText = '网络异常，已缓存';
+      state.value.lastUploadResultText = 'scanner.upload.result.network_error_cached';
       enqueueOffline(text);
       return 'error';
     }
@@ -310,7 +305,7 @@ export function useScanner() {
       state.value.errorMessage = null;
     } catch {
       state.value.status = 'error';
-      state.value.errorMessage = '分享码已过期，重建失败';
+      state.value.errorMessage = 'scanner.error.rebuildFailed';
     }
   }
 
@@ -374,7 +369,7 @@ export function useScanner() {
     } catch (err) {
       state.value.status = 'error';
       state.value.errorMessage =
-        err instanceof Error ? err.message : '启动失败';
+        err instanceof Error ? err.message : 'scanner.error.startFailed';
     }
   }
 

@@ -1,0 +1,98 @@
+{
+  "common": {
+    "back": "← Back",
+    "home": "← Home",
+    "retry": "Retry",
+    "copy": "Copy",
+    "stop": "Stop Scanning"
+  },
+  "home": {
+    "subtitle": "Real-time QR Code Scanning & Display System",
+    "scanner": {
+      "title": "I am the Uploader",
+      "description": "Open camera to scan and upload QR codes"
+    },
+    "viewer": {
+      "title": "I am the Viewer",
+      "description": "Enter a share code to view real-time QR codes"
+    }
+  },
+  "scanner": {
+    "starting": "Starting camera...",
+    "autoRebuilt": "Session expired, auto-rebuilt",
+    "shareCode": "Share Code",
+    "offlineQueue": "Network unavailable, data will retransmit ({count}/{max})",
+    "uploadCount": "Uploaded: {count} items",
+    "status": {
+      "scanning": "Scanning",
+      "starting": "Starting",
+      "error": "Error"
+    },
+    "upload": {
+      "success": "✓ Upload successful",
+      "failed": "✗ {detail}",
+      "rateLimited": "⏳ Rate limited, waiting",
+      "result": {
+        "channel_expired": "Channel expired",
+        "rate_limited": "Upload rate limited",
+        "upload_failed": "Upload failed",
+        "network_error_cached": "Network error, data cached"
+      }
+    },
+    "error": {
+      "cameraFailed": "Camera start failed",
+      "startFailed": "Start failed",
+      "notSecure": "Camera requires HTTPS or localhost",
+      "noCameraApi": "Browser does not support camera access. Please use latest Chrome, Edge, or Safari via HTTPS.",
+      "permissionDenied": "Camera permission denied. Please allow camera access in browser settings.",
+      "cameraGeneric": "Cannot access camera: {detail}",
+      "createChannelFailed": "Failed to create share code",
+      "rebuildFailed": "Share code expired, rebuild failed"
+    }
+  },
+  "viewer": {
+    "expiredBanner": "This share code has expired (no upload for 30 minutes)",
+    "reenterCode": "Re-enter share code",
+    "switchCode": "Switch code",
+    "input": {
+      "subtitle": "Real-time QR Code Display System",
+      "label": "Enter 8-digit share code",
+      "submit": "Start Displaying",
+      "hint": "Ask the app user for an 8-digit share code"
+    },
+    "qr": {
+      "waiting": "Waiting for data...",
+      "reconnecting": "Reconnecting... (attempt {attempt}/{max})",
+      "expired": "This share code has expired",
+      "enterNewCode": "Please re-enter a share code",
+      "currentText": "Current text content"
+    },
+    "status": {
+      "unconnected": "Not connected",
+      "verifying": "Verifying...",
+      "waitingData": "Waiting for data...",
+      "connected": "Connected",
+      "viewerCount": "({count} viewers)",
+      "reconnecting": "Connection lost, reconnecting... (attempt {attempt}/{max})",
+      "expired": "Channel expired"
+    },
+    "history": {
+      "title": "History",
+      "count": "{count} items",
+      "empty": "No data yet"
+    },
+    "error": {
+      "invalidCode": "Share code invalid or expired",
+      "roomFull": "This channel has reached max capacity (50 people). Please try again later.",
+      "connectFailed": "Connection failed after 5 retries. Please check network and re-enter code.",
+      "codeNotFound": "Share code not found or expired",
+      "rateLimited": "Too many verification requests, please try later",
+      "verifyFailed": "Verification failed",
+      "networkError": "Network error, cannot verify share code"
+    }
+  },
+  "theme": {
+    "switchToDark": "Switch to dark mode",
+    "switchToLight": "Switch to light mode"
+  }
+}

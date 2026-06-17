@@ -15,8 +15,11 @@
   },
   "dependencies": {
     "jsqr": "^1.4.0",
+    "pinia": "^3.0.4",
+    "pinia-plugin-persistedstate": "^4.7.1",
     "qrcode": "^1.5.4",
-    "vue": "^3.5.17"
+    "vue": "^3.5.17",
+    "vue-i18n": "^11.4.5"
   },
   "devDependencies": {
     "@tailwindcss/vite": "^4.3.1",

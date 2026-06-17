@@ -116,12 +116,12 @@ export function useWebSocket() {
         // Check if we were rejected
         if (event.code === 4001) {
           status.value = 'expired';
-          errorMessage.value = '分享码无效或已过期';
+          errorMessage.value = 'viewer.error.invalidCode';
           return;
         }
         if (event.code === 4002) {
           status.value = 'expired';
-          errorMessage.value = '该通道观看人数已满（50 人），请稍后再试';
+          errorMessage.value = 'viewer.error.roomFull';
           return;
         }
 
@@ -140,7 +140,7 @@ export function useWebSocket() {
           }, delay);
         } else {
           status.value = 'unconnected';
-          errorMessage.value = '连接失败（已重试 5 次），请检查网络后重新输入分享码';
+          errorMessage.value = 'viewer.error.connectFailed';
         }
       };
 
@@ -189,19 +189,19 @@ export function useWebSocket() {
 
       if (resp.status === 404 || resp.status === 400) {
         status.value = 'expired';
-        errorMessage.value = data.message || '分享码不存在或已过期';
+        errorMessage.value = data.message || 'viewer.error.codeNotFound';
         return;
       }
 
       if (resp.status === 429) {
         status.value = 'unconnected';
-        errorMessage.value = data.message || '验证请求过于频繁，请稍后重试';
+        errorMessage.value = data.message || 'viewer.error.rateLimited';
         return;
       }
 
       if (!resp.ok) {
         status.value = 'expired';
-        errorMessage.value = data.message || '验证失败';
+        errorMessage.value = data.message || 'viewer.error.verifyFailed';
         return;
       }
 
@@ -213,7 +213,7 @@ export function useWebSocket() {
       status.value = data.latestText ? 'connected' : 'waiting_data';
     } catch {
       status.value = 'unconnected';
-      errorMessage.value = '网络错误，无法验证分享码';
+      errorMessage.value = 'viewer.error.networkError';
       return;
     }
 
