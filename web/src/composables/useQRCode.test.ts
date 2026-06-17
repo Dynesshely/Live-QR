@@ -3,7 +3,8 @@ import { useQRCode } from './useQRCode.js';
 
 // happy-dom doesn't implement canvas fully; provide a minimal mock
 beforeEach(() => {
-  HTMLCanvasElement.prototype.getContext = vi.fn((contextId: string) => {
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  (HTMLCanvasElement.prototype.getContext as any) = vi.fn((contextId: string) => {
     if (contextId === '2d') {
       return {
         createImageData: (w: number, h: number) => ({
