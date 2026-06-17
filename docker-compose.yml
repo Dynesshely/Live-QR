@@ -2,7 +2,7 @@ services:
   qr-live:
     build: .
     ports:
-      - "41605:80"
+      - "41606:80"
     environment:
       - PORT_HTTP=41601
       - PORT_WS=41602
