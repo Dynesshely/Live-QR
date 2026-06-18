@@ -312,3 +312,11 @@ wss://<host>/ws?shareCode=12345678
 - **一键启动** — `docker compose up -d`
 - **多阶段构建** — web 构建 → server 构建 → 运行时
 - **Caddy via apk** — 架构自动适配，版本受控
+
+## 许可证
+
+本项目基于 [GNU Affero General Public License v3.0](LICENSE) 发布。
+
+Live QR Copyright (C) 2026 Dynesshely
+This program comes with ABSOLUTELY NO WARRANTY.
+This is free software, and you are welcome to redistribute it under certain conditions.
