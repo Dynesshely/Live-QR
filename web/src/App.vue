@@ -42,6 +42,11 @@ function handleViewerDisconnect(): void {
   mode.value = 'home';
 }
 
+function handleSwitchCode(): void {
+  // Disconnect WS and go back to share code input (stay in viewer mode)
+  disconnect();
+}
+
 function handleScannerBack(): void {
   mode.value = 'home';
 }
@@ -186,7 +191,7 @@ function translateError(err: string): string {
 
   <!-- ── Viewer mode: dashboard ── -->
   <template v-if="mode === 'viewer' && showViewerDashboard()">
-    <div class="min-h-screen bg-gray-50 dark:bg-gray-900">
+    <div class="min-h-screen bg-gray-50 dark:bg-gray-900 flex flex-col">
       <!-- Header bar -->
       <header class="bg-white dark:bg-gray-800 shadow-sm border-b border-gray-200 dark:border-gray-700">
         <div class="max-w-6xl mx-auto px-4 py-3">
@@ -222,7 +227,7 @@ function translateError(err: string): string {
               <button
                 class="p-1.5 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200"
                 :title="t('viewer.switchCode')"
-                @click="handleViewerDisconnect"
+                @click="handleSwitchCode"
               >
                 <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7h12m0 0l-4-4m4 4l-4 4m0 6H4m0 0l4 4m-4-4l4-4" />
@@ -296,7 +301,7 @@ function translateError(err: string): string {
       </div>
 
       <!-- Main content -->
-      <main class="max-w-6xl mx-auto px-4 py-8">
+      <main class="flex-1 max-w-6xl mx-auto px-4 py-8 w-full">
         <div class="grid grid-cols-1 lg:grid-cols-2 gap-8">
           <div class="flex flex-col items-center lg:items-start">
             <QRDisplay
