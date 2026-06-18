@@ -9,6 +9,7 @@ import QRDisplay from './components/QRDisplay.vue';
 import HistoryList from './components/HistoryList.vue';
 import StatusIndicator from './components/StatusIndicator.vue';
 import ScannerView from './components/ScannerView.vue';
+import FooterBar from './components/FooterBar.vue';
 
 type AppMode = 'home' | 'scanner' | 'viewer';
 
@@ -112,7 +113,7 @@ function translateError(err: string): string {
           <path d="M36 26h6v6" stroke="white" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/>
         </svg>
       </div>
-      <h1 class="text-5xl font-bold text-gray-800 dark:text-gray-100 mb-3">QR-Live</h1>
+      <h1 class="text-5xl font-bold text-gray-800 dark:text-gray-100 mb-3">Live QR</h1>
       <p class="text-gray-500 dark:text-gray-400 text-lg">{{ t('home.subtitle') }}</p>
     </div>
 
@@ -150,6 +151,8 @@ function translateError(err: string): string {
         <p class="text-sm text-gray-500 dark:text-gray-400">{{ t('home.viewer.description') }}</p>
       </button>
     </div>
+
+    <FooterBar />
   </div>
 
   <!-- ── Scanner mode ── -->
@@ -160,18 +163,21 @@ function translateError(err: string): string {
 
   <!-- ── Viewer mode: input ── -->
   <template v-if="mode === 'viewer' && !showViewerDashboard()">
-    <div class="relative">
+    <div class="relative min-h-screen flex flex-col">
       <button
         class="absolute top-4 left-4 z-10 text-sm text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200 underline underline-offset-2"
         @click="mode = 'home'"
       >
         {{ t('common.back') }}
       </button>
-      <ShareCodeInput
-        :disabled="viewerStatus === 'verifying'"
-        :error="errorMessage"
-        @submit="handleConnect"
-      />
+      <div class="flex-1 flex items-center justify-center">
+        <ShareCodeInput
+          :disabled="viewerStatus === 'verifying'"
+          :error="errorMessage"
+          @submit="handleConnect"
+        />
+      </div>
+      <FooterBar />
     </div>
   </template>
 
@@ -188,7 +194,7 @@ function translateError(err: string): string {
             >
               {{ t('common.home') }}
             </button>
-            <h1 class="text-xl font-bold text-gray-800 dark:text-gray-100">QR-Live</h1>
+            <h1 class="text-xl font-bold text-gray-800 dark:text-gray-100">Live QR</h1>
             <span
               v-if="shareCode"
               class="font-mono text-lg tracking-wider bg-blue-50 dark:bg-blue-900/30 text-blue-700 dark:text-blue-400 px-3 py-0.5 rounded-lg"
@@ -274,6 +280,8 @@ function translateError(err: string): string {
           </div>
         </div>
       </main>
+
+      <FooterBar />
     </div>
   </template>
 </template>

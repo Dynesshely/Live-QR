@@ -33,10 +33,10 @@ function translateError(err: string): string {
 </script>
 
 <template>
-  <div class="flex flex-col items-center justify-center min-h-screen px-4">
+  <div class="flex flex-col items-center justify-center px-4">
     <div class="w-full max-w-md">
       <!-- Title -->
-      <h1 class="text-4xl font-bold text-center text-gray-800 dark:text-gray-100 mb-2">QR-Live</h1>
+      <h1 class="text-4xl font-bold text-center text-gray-800 dark:text-gray-100 mb-2">Live QR</h1>
       <p class="text-center text-gray-500 dark:text-gray-400 mb-8">{{ t('viewer.input.subtitle') }}</p>
 
       <!-- Input card -->
