@@ -189,62 +189,89 @@ function translateError(err: string): string {
     <div class="min-h-screen bg-gray-50 dark:bg-gray-900">
       <!-- Header bar -->
       <header class="bg-white dark:bg-gray-800 shadow-sm border-b border-gray-200 dark:border-gray-700">
-        <div class="max-w-6xl mx-auto px-4 py-3 flex items-center justify-between">
-          <div class="flex items-center gap-4">
-            <button
-              class="text-sm text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200 underline underline-offset-2"
-              @click="handleViewerDisconnect"
-            >
-              {{ t('common.home') }}
-            </button>
-            <h1 class="text-xl font-bold text-gray-800 dark:text-gray-100">Live QR</h1>
+        <div class="max-w-6xl mx-auto px-4 py-3">
+          <!-- Top row: nav controls (compact on all screens) -->
+          <div class="flex items-center justify-between">
+            <div class="flex items-center gap-2 sm:gap-3">
+              <!-- Back icon (no text) -->
+              <button
+                class="p-1.5 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200"
+                :title="t('common.home')"
+                @click="handleViewerDisconnect"
+              >
+                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7" />
+                </svg>
+              </button>
+
+              <!-- Small logo (replaces text title) -->
+              <svg class="w-7 h-7 shrink-0" viewBox="0 0 64 64" fill="none">
+                <rect x="4" y="4" width="56" height="56" rx="12" fill="#2563EB"/>
+                <rect x="12" y="12" width="12" height="12" rx="2" fill="white"/>
+                <rect x="15" y="15" width="6" height="6" rx="1" fill="#2563EB"/>
+                <rect x="40" y="12" width="12" height="12" rx="2" fill="white"/>
+                <rect x="43" y="15" width="6" height="6" rx="1" fill="#2563EB"/>
+                <rect x="12" y="40" width="12" height="12" rx="2" fill="white"/>
+                <rect x="15" y="43" width="6" height="6" rx="1" fill="#2563EB"/>
+                <circle cx="44" cy="46" r="3" fill="#22C55E"/>
+              </svg>
+            </div>
+
+            <div class="flex items-center gap-1 sm:gap-2">
+              <!-- Switch code (icon only) -->
+              <button
+                class="p-1.5 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200"
+                :title="t('viewer.switchCode')"
+                @click="handleViewerDisconnect"
+              >
+                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7h12m0 0l-4-4m4 4l-4 4m0 6H4m0 0l4 4m-4-4l4-4" />
+                </svg>
+              </button>
+
+              <!-- Language switcher -->
+              <select
+                :value="locale"
+                @change="setLocale(($event.target as HTMLSelectElement).value as 'zh' | 'en' | 'ja')"
+                class="appearance-none text-xs font-medium pl-1.5 pr-6 py-1.5 rounded-lg bg-transparent hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors text-gray-600 dark:text-gray-300 cursor-pointer border-0 outline-none focus:ring-2 focus:ring-blue-500"
+              >
+                <option v-for="loc in availableLocales" :key="loc" :value="loc">
+                  {{ localeLabels[loc] }}
+                </option>
+              </select>
+
+              <!-- Theme toggle -->
+              <button
+                class="p-1.5 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors text-gray-600 dark:text-gray-300"
+                :title="isDark ? t('theme.switchToLight') : t('theme.switchToDark')"
+                @click="toggleTheme"
+              >
+                <svg v-if="isDark" class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                    d="M12 3v1m0 16v1m9-9h-1M4 12H3m15.364 6.364l-.707-.707M6.343 6.343l-.707-.707m12.728 0l-.707.707M6.343 17.657l-.707.707M16 12a4 4 0 11-8 0 4 4 0 018 0z" />
+                </svg>
+                <svg v-else class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                    d="M20.354 15.354A9 9 0 018.646 3.646 9.003 9.003 0 0012 21a9.003 9.003 0 008.354-5.646z" />
+                </svg>
+              </button>
+            </div>
+          </div>
+
+          <!-- Bottom row: share code + status (moved out of nav) -->
+          <div class="flex items-center justify-between mt-2 gap-2">
             <span
               v-if="shareCode"
-              class="font-mono text-lg tracking-wider bg-blue-50 dark:bg-blue-900/30 text-blue-700 dark:text-blue-400 px-3 py-0.5 rounded-lg"
+              class="font-mono text-base sm:text-lg tracking-wider bg-blue-50 dark:bg-blue-900/30 text-blue-700 dark:text-blue-400 px-3 py-0.5 rounded-lg"
             >
               {{ shareCode }}
             </span>
-          </div>
-
-          <div class="flex items-center gap-3">
+            <div v-else></div>
             <StatusIndicator
               :status="viewerStatus"
               :reconnect-attempt="reconnectAttempt"
               :viewer-count="viewerCount"
             />
-            <button
-              class="text-sm text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200 underline underline-offset-2"
-              @click="handleViewerDisconnect"
-            >
-              {{ t('viewer.switchCode') }}
-            </button>
-
-            <!-- Language switcher -->
-            <select
-              :value="locale"
-              @change="setLocale(($event.target as HTMLSelectElement).value as 'zh' | 'en' | 'ja')"
-              class="appearance-none text-sm font-medium pl-2 pr-7 py-1 rounded-lg bg-transparent hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors text-gray-600 dark:text-gray-300 cursor-pointer border-0 outline-none focus:ring-2 focus:ring-blue-500"
-            >
-              <option v-for="loc in availableLocales" :key="loc" :value="loc">
-                {{ localeLabels[loc] }}
-              </option>
-            </select>
-
-            <!-- Theme toggle -->
-            <button
-              class="p-2 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors text-gray-600 dark:text-gray-300"
-              :title="isDark ? t('theme.switchToLight') : t('theme.switchToDark')"
-              @click="toggleTheme"
-            >
-              <svg v-if="isDark" class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                  d="M12 3v1m0 16v1m9-9h-1M4 12H3m15.364 6.364l-.707-.707M6.343 6.343l-.707-.707m12.728 0l-.707.707M6.343 17.657l-.707.707M16 12a4 4 0 11-8 0 4 4 0 018 0z" />
-              </svg>
-              <svg v-else class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                  d="M20.354 15.354A9 9 0 018.646 3.646 9.003 9.003 0 0012 21a9.003 9.003 0 008.354-5.646z" />
-              </svg>
-            </button>
           </div>
         </div>
       </header>
