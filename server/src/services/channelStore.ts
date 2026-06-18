@@ -155,6 +155,24 @@ export function startCleanupTimer(config: AppConfig): void {
   cleanupTimer.unref();
 }
 
+export function expireChannel(shareCode: string): boolean {
+  const channel = channels.get(shareCode);
+  if (!channel) return false;
+
+  const expiredMsg: ServerMessage = {
+    type: 'channel_expired',
+    message: '该分享码已过期（30 分钟无上传），连接即将关闭',
+  };
+  for (const ws of channel.wsClients) {
+    sendMessage(ws, expiredMsg);
+    ws.close(1001, 'Channel expired');
+  }
+  channel.wsClients.clear();
+  channels.delete(shareCode);
+  logger.info('channel_cleaned', `Channel manually expired`, shareCode);
+  return true;
+}
+
 export function stopCleanupTimer(): void {
   if (cleanupTimer) {
     clearInterval(cleanupTimer);

@@ -87,10 +87,18 @@ onMounted(() => {
         v-if="state.status === 'scanning'"
         class="relative z-10 w-64 h-64 border-2 border-green-400 rounded-3xl"
       >
-        <div class="absolute -top-1 -left-1 w-8 h-8 border-t-4 border-l-4 border-green-400 rounded-tl-xl"></div>
-        <div class="absolute -top-1 -right-1 w-8 h-8 border-t-4 border-r-4 border-green-400 rounded-tr-xl"></div>
-        <div class="absolute -bottom-1 -left-1 w-8 h-8 border-b-4 border-l-4 border-green-400 rounded-bl-xl"></div>
-        <div class="absolute -bottom-1 -right-1 w-8 h-8 border-b-4 border-r-4 border-green-400 rounded-br-xl"></div>
+        <div
+          class="absolute -top-1 -left-1 w-8 h-8 border-t-4 border-l-4 border-green-400 rounded-tl-xl"
+        ></div>
+        <div
+          class="absolute -top-1 -right-1 w-8 h-8 border-t-4 border-r-4 border-green-400 rounded-tr-xl"
+        ></div>
+        <div
+          class="absolute -bottom-1 -left-1 w-8 h-8 border-b-4 border-l-4 border-green-400 rounded-bl-xl"
+        ></div>
+        <div
+          class="absolute -bottom-1 -right-1 w-8 h-8 border-b-4 border-r-4 border-green-400 rounded-br-xl"
+        ></div>
       </div>
 
       <!-- Auto-rebuilt banner -->
@@ -106,7 +114,9 @@ onMounted(() => {
         v-if="state.status === 'starting'"
         class="relative z-10 flex flex-col items-center gap-4 text-white"
       >
-        <div class="animate-spin w-10 h-10 border-3 border-white border-t-transparent rounded-full"></div>
+        <div
+          class="animate-spin w-10 h-10 border-3 border-white border-t-transparent rounded-full"
+        ></div>
         <p class="text-lg">{{ t('scanner.starting') }}</p>
       </div>
 
@@ -116,11 +126,17 @@ onMounted(() => {
         class="relative z-10 flex flex-col items-center gap-4 text-white px-8 text-center"
       >
         <svg class="w-14 h-14 text-red-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5"
-            d="M12 9v2m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+          <path
+            stroke-linecap="round"
+            stroke-linejoin="round"
+            stroke-width="1.5"
+            d="M12 9v2m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
+          />
         </svg>
         <p class="text-lg font-medium">{{ t('scanner.error.cameraFailed') }}</p>
-        <p class="text-sm text-gray-300">{{ state.errorMessage ? translateError(state.errorMessage) : '' }}</p>
+        <p class="text-sm text-gray-300">
+          {{ state.errorMessage ? translateError(state.errorMessage) : '' }}
+        </p>
         <div class="flex gap-3 mt-2">
           <button
             class="px-5 py-2 bg-white/20 text-white rounded-lg hover:bg-white/30 transition-colors text-sm"
@@ -162,9 +178,18 @@ onMounted(() => {
         v-if="state.offlineQueueSize > 0"
         class="mb-3 bg-yellow-500/20 border border-yellow-500/40 rounded-lg px-3 py-2 flex items-center gap-2"
       >
-        <svg class="w-4 h-4 text-yellow-400 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-            d="M12 9v2m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+        <svg
+          class="w-4 h-4 text-yellow-400 shrink-0"
+          fill="none"
+          stroke="currentColor"
+          viewBox="0 0 24 24"
+        >
+          <path
+            stroke-linecap="round"
+            stroke-linejoin="round"
+            stroke-width="2"
+            d="M12 9v2m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
+          />
         </svg>
         <span class="text-yellow-300 text-sm">
           {{ t('scanner.offlineQueue', { count: state.offlineQueueSize, max: 6 }) }}
@@ -194,19 +219,20 @@ onMounted(() => {
         <div class="flex items-center gap-4 text-gray-400">
           <span>{{ t('scanner.uploadCount', { count: state.uploadCount }) }}</span>
           <!-- Upload result feedback -->
-          <span
-            v-if="state.lastUploadResult === 'success'"
-            class="text-green-400 text-xs"
-          >{{ t('scanner.upload.success') }}</span>
-          <span
-            v-else-if="state.lastUploadResult === 'failed'"
-            class="text-red-400 text-xs"
-          >{{ t('scanner.upload.failed', { detail: state.lastUploadResultText ? translateError(state.lastUploadResultText) : '' }) }}</span>
+          <span v-if="state.lastUploadResult === 'success'" class="text-green-400 text-xs">{{
+            t('scanner.upload.success')
+          }}</span>
+          <span v-else-if="state.lastUploadResult === 'failed'" class="text-red-400 text-xs">{{
+            t('scanner.upload.failed', {
+              detail: state.lastUploadResultText ? translateError(state.lastUploadResultText) : '',
+            })
+          }}</span>
           <span
             v-else-if="state.lastUploadResult === 'rate_limited'"
             class="text-yellow-400 text-xs"
-          >{{ t('scanner.upload.rateLimited') }}</span>
-          <span v-if="state.lastScannedText" class="max-w-[120px] truncate hidden sm:inline">
+            >{{ t('scanner.upload.rateLimited') }}</span
+          >
+          <span v-if="state.lastScannedText" class="max-w-30 truncate hidden sm:inline">
             "{{ state.lastScannedText }}"
           </span>
         </div>

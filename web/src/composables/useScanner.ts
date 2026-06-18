@@ -374,6 +374,19 @@ export function useScanner() {
   }
 
   async function stop(): Promise<void> {
+    // Expire the channel on server so viewers get immediate notification
+    if (state.value.shareCode) {
+      try {
+        await fetch('/api/channel/expire', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ shareCode: state.value.shareCode }),
+        });
+      } catch {
+        // Ignore — server may already be unreachable
+      }
+    }
+
     stopCamera();
     cancelThrottleTimer();
     if (scanTimer) {

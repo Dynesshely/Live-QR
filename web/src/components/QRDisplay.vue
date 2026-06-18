@@ -52,14 +52,14 @@ onMounted(async () => {
           ref="canvasRef"
           width="256"
           height="256"
-          class="w-full max-w-64 min-w-[200px] aspect-square object-contain"
+          class="w-full max-w-64 min-w-50 aspect-square object-contain rounded-xl"
         ></canvas>
       </template>
 
       <!-- Placeholder when no data -->
       <div
         v-else
-        class="w-full max-w-64 min-w-[200px] aspect-square flex items-center justify-center bg-gray-100 dark:bg-gray-700 rounded-xl"
+        class="w-full max-w-64 min-w-50 aspect-square flex items-center justify-center bg-gray-100 dark:bg-gray-700 rounded-xl"
       >
         <div class="text-center text-gray-400 dark:text-gray-500">
           <svg class="w-12 h-12 mx-auto mb-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -83,7 +83,9 @@ onMounted(async () => {
       class="absolute inset-0 bg-white/70 dark:bg-gray-800/70 rounded-2xl flex items-center justify-center backdrop-blur-sm"
     >
       <div class="text-center">
-        <div class="animate-spin w-8 h-8 border-4 border-blue-600 border-t-transparent rounded-full mx-auto mb-3"></div>
+        <div
+          class="animate-spin w-8 h-8 border-4 border-blue-600 border-t-transparent rounded-full mx-auto mb-3"
+        ></div>
         <p class="text-orange-700 dark:text-orange-400 font-medium text-sm">
           {{ t('viewer.qr.reconnecting', { attempt: reconnectAttempt ?? 0, max: 5 }) }}
         </p>
@@ -96,19 +98,32 @@ onMounted(async () => {
       class="absolute inset-0 bg-white/90 dark:bg-gray-800/90 rounded-2xl flex items-center justify-center backdrop-blur-sm"
     >
       <div class="text-center px-4">
-        <svg class="w-10 h-10 mx-auto mb-2 text-red-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5"
-            d="M12 9v2m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+        <svg
+          class="w-10 h-10 mx-auto mb-2 text-red-500"
+          fill="none"
+          stroke="currentColor"
+          viewBox="0 0 24 24"
+        >
+          <path
+            stroke-linecap="round"
+            stroke-linejoin="round"
+            stroke-width="1.5"
+            d="M12 9v2m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
+          />
         </svg>
         <p class="text-red-600 dark:text-red-400 font-medium">{{ t('viewer.qr.expired') }}</p>
-        <p class="text-gray-500 dark:text-gray-400 text-sm mt-1">{{ t('viewer.qr.enterNewCode') }}</p>
+        <p class="text-gray-500 dark:text-gray-400 text-sm mt-1">
+          {{ t('viewer.qr.enterNewCode') }}
+        </p>
       </div>
     </div>
 
     <!-- Text display below QR -->
     <div v-if="text" class="mt-4 px-1">
       <p class="text-xs text-gray-400 dark:text-gray-500 mb-1">{{ t('viewer.qr.currentText') }}</p>
-      <p class="font-mono text-sm text-gray-700 dark:text-gray-200 bg-gray-50 dark:bg-gray-700 rounded-lg p-3 break-all select-all max-h-20 overflow-y-auto">
+      <p
+        class="font-mono text-sm text-gray-700 dark:text-gray-200 bg-gray-50 dark:bg-gray-700 rounded-lg p-3 break-all select-all max-h-20 overflow-y-auto"
+      >
         {{ text }}
       </p>
     </div>

@@ -21,7 +21,9 @@ const labels = computed<Record<ConnectionStatus, string>>(() => ({
 }));
 
 const viewerCountText = computed(() =>
-  props.viewerCount !== undefined ? t('viewer.status.viewerCount', { count: props.viewerCount }) : '',
+  props.viewerCount !== undefined
+    ? t('viewer.status.viewerCount', { count: props.viewerCount })
+    : '',
 );
 </script>
 

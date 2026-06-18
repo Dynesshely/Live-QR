@@ -1,7 +1,7 @@
 {
   "common": {
-    "back": "← 返回",
-    "home": "← 首页",
+    "back": "返回",
+    "home": "首页",
     "retry": "重试",
     "copy": "复制",
     "stop": "停止扫码"
@@ -24,14 +24,15 @@
     "offlineQueue": "网络异常，数据将在恢复后重传（缓存 {count}/{max}）",
     "uploadCount": "已上传：{count} 条",
     "status": {
+      "idle": "",
       "scanning": "扫码中",
       "starting": "启动中",
       "error": "错误"
     },
     "upload": {
-      "success": "✓ 上传成功",
-      "failed": "✗ {detail}",
-      "rateLimited": "⏳ 限流等待中",
+      "success": "✓  上传成功",
+      "failed": "✗  {detail}",
+      "rateLimited": "⏳  限流等待中",
       "result": {
         "channel_expired": "通道已过期",
         "rate_limited": "上传频率限制",
@@ -51,7 +52,7 @@
     }
   },
   "viewer": {
-    "expiredBanner": "该分享码已过期（30 分钟无上传）",
+    "expiredBanner": "该分享码已过期",
     "reenterCode": "重新输入分享码",
     "switchCode": "切换分享码",
     "input": {

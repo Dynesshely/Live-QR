@@ -1,7 +1,7 @@
 {
   "common": {
-    "back": "← Back",
-    "home": "← Home",
+    "back": "Back",
+    "home": "Home",
     "retry": "Retry",
     "copy": "Copy",
     "stop": "Stop Scanning"
@@ -24,14 +24,15 @@
     "offlineQueue": "Network unavailable, data will retransmit ({count}/{max})",
     "uploadCount": "Uploaded: {count} items",
     "status": {
+      "idle": "",
       "scanning": "Scanning",
       "starting": "Starting",
       "error": "Error"
     },
     "upload": {
-      "success": "✓ Upload successful",
-      "failed": "✗ {detail}",
-      "rateLimited": "⏳ Rate limited, waiting",
+      "success": "✓  Upload successful",
+      "failed": "✗  {detail}",
+      "rateLimited": "⏳  Rate limited, waiting",
       "result": {
         "channel_expired": "Channel expired",
         "rate_limited": "Upload rate limited",
@@ -51,7 +52,7 @@
     }
   },
   "viewer": {
-    "expiredBanner": "This share code has expired (no upload for 30 minutes)",
+    "expiredBanner": "This share code has expired",
     "reenterCode": "Re-enter share code",
     "switchCode": "Switch code",
     "input": {

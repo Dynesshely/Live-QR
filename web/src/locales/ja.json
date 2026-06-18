@@ -1,7 +1,7 @@
 {
   "common": {
-    "back": "← 戻る",
-    "home": "← ホーム",
+    "back": "戻る",
+    "home": "ホーム",
     "retry": "再試行",
     "copy": "コピー",
     "stop": "スキャン停止"
@@ -24,14 +24,15 @@
     "offlineQueue": "ネットワーク異常、データは復旧後に再送信されます（キャッシュ {count}/{max}）",
     "uploadCount": "アップロード済み：{count} 件",
     "status": {
+      "idle": "",
       "scanning": "スキャン中",
       "starting": "起動中",
       "error": "エラー"
     },
     "upload": {
-      "success": "✓ アップロード成功",
-      "failed": "✗ {detail}",
-      "rateLimited": "⏳ レート制限待機中",
+      "success": "✓  アップロード成功",
+      "failed": "✗  {detail}",
+      "rateLimited": "⏳  レート制限待機中",
       "result": {
         "channel_expired": "チャンネルが期限切れです",
         "rate_limited": "アップロードレート制限",
@@ -51,7 +52,7 @@
     }
   },
   "viewer": {
-    "expiredBanner": "この共有コードは期限切れです（30分間アップロードなし）",
+    "expiredBanner": "この共有コードは期限切れです",
     "reenterCode": "共有コードを再入力",
     "switchCode": "共有コードを切り替え",
     "input": {

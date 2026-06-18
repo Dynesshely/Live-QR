@@ -1,5 +1,5 @@
 import { Router, type Request, type Response } from 'express';
-import { createChannel, getChannel, channelExists } from '../services/channelStore.js';
+import { createChannel, getChannel, channelExists, expireChannel } from '../services/channelStore.js';
 import { createVerifyRateLimiter } from '../middleware/rateLimiter.js';
 import type { AppConfig } from '../types.js';
 import { logger } from '../logger.js';
@@ -75,6 +75,32 @@ export function createChannelRouter(config: AppConfig): Router {
       latestText: channel.latestText,
       updatedAt: channel.latestText ? new Date(channel.lastUploadAt).toISOString() : null,
     });
+  });
+
+  // POST /api/channel/expire
+  router.post('/api/channel/expire', (req: Request, res: Response) => {
+    const { shareCode } = req.body;
+
+    if (!shareCode || !SHARE_CODE_REGEX.test(shareCode)) {
+      res.status(400).json({
+        code: 400,
+        error: 'INVALID_SHARE_CODE',
+        message: '分享码格式无效（需为 8 位数字）',
+      });
+      return;
+    }
+
+    const expired = expireChannel(shareCode);
+    if (!expired) {
+      res.status(404).json({
+        code: 404,
+        error: 'CHANNEL_NOT_FOUND',
+        message: '分享码不存在或已过期',
+      });
+      return;
+    }
+
+    res.status(200).json({ code: 200, message: 'ok' });
   });
 
   return router;

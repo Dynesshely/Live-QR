@@ -3,7 +3,7 @@
 
 <template>
   <footer class="w-full pt-3 pb-6 px-4">
-    <div class="max-w-6xl mx-auto">
+    <div class="max-w-4xl mx-auto">
       <div
         class="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 px-4 py-3 flex flex-col sm:flex-row items-center justify-between gap-2"
       >

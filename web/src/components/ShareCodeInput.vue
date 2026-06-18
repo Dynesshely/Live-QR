@@ -4,6 +4,7 @@ import { useI18n } from 'vue-i18n';
 
 const emit = defineEmits<{
   submit: [shareCode: string];
+  back: [];
 }>();
 
 defineProps<{
@@ -50,7 +51,7 @@ function translateError(err: string): string {
         </div>
 
         <!-- Input -->
-        <label class="block text-sm font-medium text-gray-600 dark:text-gray-300 mb-2">
+        <label class="block text-sm font-medium text-gray-600 dark:text-gray-300 mb-4">
           {{ t('viewer.input.label') }}
         </label>
         <input
@@ -75,6 +76,17 @@ function translateError(err: string): string {
           @click="handleSubmit"
         >
           {{ t('viewer.input.submit') }}
+        </button>
+
+        <!-- Back button -->
+        <button
+          class="mt-3 w-fit py-2.5 px-5 rounded-xl font-medium border border-gray-200 dark:border-gray-600 text-gray-600 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700 transition-all active:scale-[0.98] inline-flex items-center gap-1.5"
+          @click="emit('back')"
+        >
+          <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7" />
+          </svg>
+          {{ t('common.back') }}
         </button>
       </div>
 
