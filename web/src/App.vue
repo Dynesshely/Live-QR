@@ -59,10 +59,10 @@ function translateError(err: string): string {
   <!-- ── Home: mode selection ── -->
   <div
     v-if="mode === 'home'"
-    class="min-h-screen bg-gray-50 dark:bg-gray-900 flex flex-col items-center justify-center px-4 relative"
+    class="min-h-screen bg-gray-50 dark:bg-gray-900 flex flex-col px-4 relative"
   >
     <!-- Theme + Language controls (top-right corner) -->
-    <div class="absolute top-4 right-4 flex items-center gap-2">
+    <div class="absolute top-4 right-4 flex items-center gap-2 z-10">
       <!-- Language select -->
       <select
         :value="locale"
@@ -93,7 +93,9 @@ function translateError(err: string): string {
       </button>
     </div>
 
-    <div class="text-center mb-10">
+    <!-- Main content: centered vertically -->
+    <div class="flex-1 flex flex-col items-center justify-center">
+      <div class="text-center mb-10">
       <!-- Logo -->
       <div class="mb-6 flex justify-center">
         <svg class="w-20 h-20" viewBox="0 0 64 64" fill="none">
@@ -150,6 +152,7 @@ function translateError(err: string): string {
         <h2 class="text-xl font-semibold text-gray-800 dark:text-gray-100 mb-2">{{ t('home.viewer.title') }}</h2>
         <p class="text-sm text-gray-500 dark:text-gray-400">{{ t('home.viewer.description') }}</p>
       </button>
+      </div>
     </div>
 
     <FooterBar />
