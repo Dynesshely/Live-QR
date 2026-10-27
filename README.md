@@ -1,6 +1,46 @@
-# Live QR
+<p align="center">
+  <img src="assets/logo.svg" width="120" height="120" alt="Live QR" />
+</p>
+
+<h1 align="center">Live QR</h1>
+
+<p align="center">
+  实时二维码扫描与展示系统 —— 扫码即传，观看端实时重绘
+</p>
+
+<p align="center">
+  <a href="https://qr-live.cxs.apps.dynesshely.top"><b>🌐 官方实例</b></a>
+  &nbsp;·&nbsp;
+  <a href="#快速开始">快速开始</a>
+  &nbsp;·&nbsp;
+  <a href="#api-参考">API 参考</a>
+  &nbsp;·&nbsp;
+  <a href="#docker-部署">Docker 部署</a>
+  &nbsp;·&nbsp;
+  <a href="LICENSE">许可证</a>
+</p>
+
+<p align="center">
+  <a href="https://github.com/Dynesshely/Live-QR/stargazers">
+    <img src="https://img.shields.io/github/stars/Dynesshely/Live-QR?style=flat-square&logo=github&logoColor=white" alt="GitHub stars" />
+  </a>
+  <a href="LICENSE">
+    <img src="https://img.shields.io/badge/license-AGPL--3.0-blue?style=flat-square" alt="License: AGPL-3.0" />
+  </a>
+  <img src="https://img.shields.io/badge/Node.js-%E2%89%A522-339933?style=flat-square&logo=node.js&logoColor=white" alt="Node.js ≥ 22" />
+  <img src="https://img.shields.io/badge/TypeScript-5.9-3178C6?style=flat-square&logo=typescript&logoColor=white" alt="TypeScript" />
+  <img src="https://img.shields.io/badge/Vue-3-42B883?style=flat-square&logo=vue.js&logoColor=white" alt="Vue 3" />
+  <img src="https://img.shields.io/badge/Express-5-000000?style=flat-square&logo=express&logoColor=white" alt="Express 5" />
+  <img src="https://img.shields.io/badge/Tailwind_CSS-4-06B6D4?style=flat-square&logo=tailwindcss&logoColor=white" alt="Tailwind CSS 4" />
+  <img src="https://img.shields.io/badge/Vite-6-646CFF?style=flat-square&logo=vite&logoColor=white" alt="Vite 6" />
+  <img src="https://img.shields.io/badge/Docker-ready-2496ED?style=flat-square&logo=docker&logoColor=white" alt="Docker" />
+</p>
+
+---
 
 实时二维码扫描与展示系统。上传端通过摄像头扫描二维码并解码为文本，观看端输入 8 位分享码后实时接收文本并重新渲染为二维码。
+
+> **官方实例**：<https://qr-live.cxs.apps.dynesshely.top>
 
 ## 工作原理
 
@@ -89,7 +129,21 @@ pnpm lint         # ESLint 代码检查
 pnpm format       # Prettier 代码格式化
 pnpm test         # 运行单元测试（单次）
 pnpm test:watch   # 运行单元测试（监听模式）
+pnpm icon         # 重新生成 Logo/Favicon（web 目录下，见下）
 ```
+
+### 图标
+
+品牌图标只有**一份几何定义** —— `web/scripts/render-icon.mjs` 里的 `ICON`，
+执行 `pnpm icon`（在 `web/` 下）一次性生成 `assets/logo.svg`、
+`web/public/favicon.svg`、`favicon-32.png` 与 `apple-touch-icon.png`。
+
+之所以用脚本而不是手写 SVG：同一图形需要 SVG（可缩放，浏览器 favicon）与
+PNG（iOS 的 `apple-touch-icon` 不认 SVG）两种形态，手写会散落在四五个文件里。
+脚本用 `node:zlib` 手写 PNG 编码、用解析式 SDF + 超采样做抗锯齿，
+不依赖任何外部光栅化器（`rsvg-convert` / `inkscape` / `cairosvg` 均不需要）。
+
+改图形请改 `ICON` 常量后重跑，不要手改生成的产物。
 
 ### Docker 部署
 
@@ -98,6 +152,8 @@ cp .env.example .env
 docker compose up -d
 # 访问 http://localhost:41605
 ```
+
+> 官方实例部署在同一镜像上：<https://qr-live.cxs.apps.dynesshely.top>
 
 ## 技术栈
 
@@ -121,7 +177,7 @@ Live-QR/
 │   ├── Requirements.md            # 完整需求文档
 │   └── Enhancements #1.md         # 技术栈改进记录
 ├── assets/
-│   └── logo.svg                   # 项目 Logo 源文件
+│   └── logo.svg                   # 项目 Logo 源文件（由 web/scripts/render-icon.mjs 生成）
 ├── server/
 │   ├── eslint.config.js           # ESLint flat config
 │   ├── vitest.config.ts           # Vitest 配置
@@ -144,12 +200,17 @@ Live-QR/
 ├── web/
 │   ├── eslint.config.js           # ESLint flat config (Vue SFC)
 │   ├── vitest.config.ts           # Vitest 配置
+│   ├── scripts/
+│   │   └── render-icon.mjs        # Logo 单一几何定义 → 生成 SVG + PNG（pnpm icon）
 │   ├── public/
-│   │   └── favicon.svg            # Favicon
+│   │   ├── favicon.svg            # Favicon（矢量，浏览器首选）
+│   │   ├── favicon-32.png         # Favicon 位图回退
+│   │   └── apple-touch-icon.png   # iOS「添加到主屏幕」图标（iOS 不认 SVG favicon）
 │   └── src/
 │       ├── App.vue                # 根组件（首页/扫描/观看）
 │       ├── style.css              # Tailwind CSS v4 入口
 │       ├── components/
+│       │   ├── BrandMark.vue           # 品牌图标（引用 favicon.svg，避免多处内联）
 │       │   ├── ScannerView.vue        # 摄像头扫码界面
 │       │   ├── QRDisplay.vue          # 二维码展示卡片
 │       │   ├── ShareCodeInput.vue     # 8 位分享码输入
@@ -312,6 +373,14 @@ wss://<host>/ws?shareCode=12345678
 - **一键启动** — `docker compose up -d`
 - **多阶段构建** — web 构建 → server 构建 → 运行时
 - **Caddy via apk** — 架构自动适配，版本受控
+
+## Star History
+
+<p align="center">
+  <a href="https://star-history.com/#Dynesshely/Live-QR&Date">
+    <img src="https://api.star-history.com/svg?repos=Dynesshely/Live-QR&type=Date&theme=dark" alt="Star History Chart" width="640" />
+  </a>
+</p>
 
 ## 许可证
 
