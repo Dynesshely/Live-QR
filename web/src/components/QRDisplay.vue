@@ -43,23 +43,29 @@ onMounted(async () => {
 </script>
 
 <template>
-  <div class="relative">
+  <!--
+    原先卡片是 inline-block + canvas 固定 max-w-64/min-w-50，尺寸完全由内容决定：
+    320px 屏下卡片实宽 304px，直接把页面左右各 16px 的内边距吃光（只剩 8px 白边），
+    更窄的机型就会溢出。改为一层 w-full max-w-80 的流体容器 + 内部 w-full 画布，
+    画布宽度由可用宽度决定，320px 起都能正确留白。
+  -->
+  <div class="relative w-full max-w-80">
     <!-- QR Code card -->
-    <div class="bg-white dark:bg-gray-800 rounded-2xl shadow-lg p-6 inline-block">
+    <div class="bg-white dark:bg-gray-800 rounded-2xl shadow-lg p-4 sm:p-5">
       <!-- Canvas -->
       <template v-if="text">
         <canvas
           ref="canvasRef"
           width="256"
           height="256"
-          class="w-full max-w-64 min-w-50 aspect-square object-contain rounded-xl"
+          class="block w-full h-auto aspect-square rounded-xl"
         ></canvas>
       </template>
 
       <!-- Placeholder when no data -->
       <div
         v-else
-        class="w-full max-w-64 min-w-50 aspect-square flex items-center justify-center bg-gray-100 dark:bg-gray-700 rounded-xl"
+        class="w-full aspect-square flex items-center justify-center bg-gray-100 dark:bg-gray-700 rounded-xl"
       >
         <div class="text-center text-gray-400 dark:text-gray-500">
           <svg class="w-12 h-12 mx-auto mb-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -80,7 +86,7 @@ onMounted(async () => {
     <!-- Reconnecting overlay -->
     <div
       v-if="status === 'reconnecting'"
-      class="absolute inset-0 bg-white/70 dark:bg-gray-800/70 rounded-2xl flex items-center justify-center backdrop-blur-sm"
+      class="absolute inset-0 bg-white/70 dark:bg-gray-800/70 rounded-2xl flex items-center justify-center backdrop-blur-sm p-4"
     >
       <div class="text-center">
         <div
@@ -119,7 +125,7 @@ onMounted(async () => {
     </div>
 
     <!-- Text display below QR -->
-    <div v-if="text" class="mt-4 px-1">
+    <div v-if="text" class="mt-3 sm:mt-4 px-1">
       <p class="text-xs text-gray-400 dark:text-gray-500 mb-1">{{ t('viewer.qr.currentText') }}</p>
       <p
         class="font-mono text-sm text-gray-700 dark:text-gray-200 bg-gray-50 dark:bg-gray-700 rounded-lg p-3 break-all select-all max-h-20 overflow-y-auto"

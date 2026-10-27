@@ -28,37 +28,38 @@ const viewerCountText = computed(() =>
 </script>
 
 <template>
-  <div class="flex items-center gap-2">
+  <div class="flex items-center gap-2 min-w-0">
+    <!-- 胶囊在窄屏上收字号/内边距，避免与分享码挤在一行时被压变形 -->
     <!-- Status dot + label -->
     <span
       v-if="status === 'unconnected'"
-      class="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-sm bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-400"
+      class="inline-flex items-center gap-1.5 px-2.5 sm:px-3 py-1 rounded-full text-xs sm:text-sm bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-400 whitespace-nowrap"
     >
-      <span class="w-2 h-2 rounded-full bg-gray-400"></span>
+      <span class="w-2 h-2 rounded-full bg-gray-400 shrink-0"></span>
       {{ labels.unconnected }}
     </span>
 
     <span
       v-else-if="status === 'verifying'"
-      class="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-sm bg-yellow-100 dark:bg-yellow-900/30 text-yellow-700 dark:text-yellow-400"
+      class="inline-flex items-center gap-1.5 px-2.5 sm:px-3 py-1 rounded-full text-xs sm:text-sm bg-yellow-100 dark:bg-yellow-900/30 text-yellow-700 dark:text-yellow-400 whitespace-nowrap"
     >
-      <span class="w-2 h-2 rounded-full bg-yellow-500 animate-pulse"></span>
+      <span class="w-2 h-2 rounded-full bg-yellow-500 animate-pulse shrink-0"></span>
       {{ labels.verifying }}
     </span>
 
     <span
       v-else-if="status === 'waiting_data'"
-      class="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-sm bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-400"
+      class="inline-flex items-center gap-1.5 px-2.5 sm:px-3 py-1 rounded-full text-xs sm:text-sm bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-400 whitespace-nowrap"
     >
-      <span class="w-2 h-2 rounded-full bg-blue-500"></span>
+      <span class="w-2 h-2 rounded-full bg-blue-500 shrink-0"></span>
       {{ labels.waiting_data }}
     </span>
 
     <span
       v-else-if="status === 'connected'"
-      class="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-sm bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-400"
+      class="inline-flex items-center gap-1.5 px-2.5 sm:px-3 py-1 rounded-full text-xs sm:text-sm bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-400 whitespace-nowrap"
     >
-      <span class="w-2 h-2 rounded-full bg-green-500 animate-pulse"></span>
+      <span class="w-2 h-2 rounded-full bg-green-500 animate-pulse shrink-0"></span>
       {{ labels.connected }}
       <span v-if="viewerCount !== undefined" class="ml-1 opacity-75">
         {{ viewerCountText }}
@@ -67,17 +68,17 @@ const viewerCountText = computed(() =>
 
     <span
       v-else-if="status === 'reconnecting'"
-      class="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-sm bg-orange-100 dark:bg-orange-900/30 text-orange-700 dark:text-orange-400"
+      class="inline-flex items-center gap-1.5 px-2.5 sm:px-3 py-1 rounded-full text-xs sm:text-sm bg-orange-100 dark:bg-orange-900/30 text-orange-700 dark:text-orange-400"
     >
-      <span class="w-2 h-2 rounded-full bg-orange-500 animate-pulse"></span>
+      <span class="w-2 h-2 rounded-full bg-orange-500 animate-pulse shrink-0"></span>
       {{ labels.reconnecting }}
     </span>
 
     <span
       v-else-if="status === 'expired'"
-      class="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-sm bg-red-100 dark:bg-red-900/30 text-red-600 dark:text-red-400"
+      class="inline-flex items-center gap-1.5 px-2.5 sm:px-3 py-1 rounded-full text-xs sm:text-sm bg-red-100 dark:bg-red-900/30 text-red-600 dark:text-red-400 whitespace-nowrap"
     >
-      <span class="w-2 h-2 rounded-full bg-red-500"></span>
+      <span class="w-2 h-2 rounded-full bg-red-500 shrink-0"></span>
       {{ labels.expired }}
     </span>
   </div>

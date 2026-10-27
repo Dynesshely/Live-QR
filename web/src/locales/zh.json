@@ -4,7 +4,8 @@
     "home": "首页",
     "retry": "重试",
     "copy": "复制",
-    "stop": "停止扫码"
+    "stop": "停止扫码",
+    "close": "关闭"
   },
   "home": {
     "subtitle": "实时二维码扫描与展示系统",
@@ -80,7 +81,8 @@
     "history": {
       "title": "历史文本",
       "count": "{count} 条",
-      "empty": "暂无数据"
+      "empty": "暂无数据",
+      "showQR": "显示二维码"
     },
     "error": {
       "invalidCode": "分享码无效或已过期",

@@ -2,7 +2,8 @@
 </script>
 
 <template>
-  <footer class="w-full pt-3 pb-6 px-4">
+  <!-- pb 用 max()：避开 iPhone Home 指示条，同时保证普通设备仍有 1.5rem 留白 -->
+  <footer class="w-full pt-3 pb-[max(1.5rem,env(safe-area-inset-bottom))] px-3 sm:px-4">
     <div class="max-w-4xl mx-auto">
       <div
         class="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 px-4 py-3 flex flex-col sm:flex-row items-center justify-between gap-2"
@@ -16,7 +17,7 @@
           href="https://github.com/Dynesshely/Live-QR"
           target="_blank"
           rel="noopener noreferrer"
-          class="text-xs text-gray-500 dark:text-gray-400 hover:text-blue-600 dark:hover:text-blue-400 transition-colors inline-flex items-center gap-1"
+          class="text-xs text-gray-500 dark:text-gray-400 hover:text-blue-600 dark:hover:text-blue-400 transition-colors inline-flex items-center gap-1 px-2 py-2 -mx-2 rounded-lg"
         >
           <svg class="w-3.5 h-3.5" fill="currentColor" viewBox="0 0 24 24">
             <path

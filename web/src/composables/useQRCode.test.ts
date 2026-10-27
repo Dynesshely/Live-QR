@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { useQRCode } from './useQRCode.js';
+import { useQRCode, QR_BITMAP_SIZE } from './useQRCode.js';
 
 // happy-dom doesn't implement canvas fully; provide a minimal mock
 beforeEach(() => {
@@ -42,19 +42,32 @@ describe('useQRCode', () => {
     expect(canvas).toBeDefined();
   });
 
-  it('uses correct default dimensions', async () => {
+  it('renders the bitmap at QR_BITMAP_SIZE', async () => {
     const { generate } = useQRCode();
     const canvas = document.createElement('canvas');
 
     await generate(canvas, 'test');
-    expect(canvas.width).toBe(256);
-    expect(canvas.height).toBe(256);
+    expect(canvas.width).toBe(QR_BITMAP_SIZE);
+    expect(canvas.height).toBe(QR_BITMAP_SIZE);
   });
 
-  it('throws on empty input text', () => {
+  // 回归防护：qrcode 的 canvas renderer 会写 canvas.style.width/height 内联样式，
+  // 它会盖掉 Tailwind 的 w-full，导致画布被锁死在固定像素上 ——
+  // 表现为 QR 卡片不再正方、且右侧留白明显大于左侧。
+  it('clears the inline size written by qrcode so CSS controls layout', async () => {
     const { generate } = useQRCode();
     const canvas = document.createElement('canvas');
 
-    expect(() => generate(canvas, '')).rejects.toThrow('No input text');
+    await generate(canvas, 'test');
+    expect(canvas.style.width).toBe('');
+    expect(canvas.style.height).toBe('');
+  });
+
+  it('throws on empty input text', async () => {
+    const { generate } = useQRCode();
+    const canvas = document.createElement('canvas');
+
+    // 必须 await：漏掉 await 的 rejects 断言不会真正执行，测试形同虚设
+    await expect(generate(canvas, '')).rejects.toThrow('No input text');
   });
 });

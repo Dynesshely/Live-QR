@@ -14,6 +14,8 @@ export default defineConfig({
     },
   },
   server: {
+    allowedHosts: true,
+    host: '0.0.0.0',
     port: 41605,
     proxy: {
       '/api': 'http://localhost:41601',

@@ -40,13 +40,13 @@ function closeQRModal(): void {
 </script>
 
 <template>
-  <div class="bg-white dark:bg-gray-800 rounded-2xl shadow-lg p-6">
-    <div class="flex items-center justify-between mb-4">
-      <h2 class="text-lg font-semibold text-gray-800 dark:text-gray-100">
+  <div class="bg-white dark:bg-gray-800 rounded-2xl shadow-lg p-4 sm:p-6">
+    <div class="flex items-center justify-between mb-3 sm:mb-4">
+      <h2 class="text-base sm:text-lg font-semibold text-gray-800 dark:text-gray-100">
         {{ t('viewer.history.title') }}
       </h2>
       <span
-        class="text-xs text-gray-400 dark:text-gray-500 bg-gray-100 dark:bg-gray-700 px-2 py-0.5 rounded-full"
+        class="text-xs text-gray-400 dark:text-gray-500 bg-gray-100 dark:bg-gray-700 px-2 py-0.5 rounded-full shrink-0"
       >
         {{ t('viewer.history.count', { count: messages.length }) }}
       </span>
@@ -61,11 +61,12 @@ function closeQRModal(): void {
     </div>
 
     <!-- Message list (time-descending) -->
-    <div v-else class="space-y-2 max-h-125 overflow-y-auto scrollbar-thin">
+    <!-- 移动端按可视高度收敛，避免列表把整页拉得过长 -->
+    <div v-else class="space-y-2 max-h-[50dvh] sm:max-h-125 overflow-y-auto scrollbar-thin">
       <div
         v-for="(msg, idx) in messages"
         :key="msg.timestamp + '-' + idx"
-        class="p-3 rounded-lg bg-gray-50 dark:bg-gray-700/50 hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors flex items-start gap-2"
+        class="p-3 rounded-lg bg-gray-50 dark:bg-gray-700/50 transition-colors flex items-start gap-2"
       >
         <div class="flex-1 min-w-0">
           <span class="text-xs text-gray-400 dark:text-gray-500 block mb-1">
@@ -75,10 +76,11 @@ function closeQRModal(): void {
             {{ msg.data }}
           </p>
         </div>
-        <!-- QR button -->
+        <!-- QR button：p-2.5 让触控目标接近 40px（原 p-1.5 仅 28px，手机上易点偏） -->
         <button
-          class="shrink-0 p-1.5 rounded-lg hover:bg-gray-200 dark:hover:bg-gray-600 transition-colors text-gray-400 dark:text-gray-500 hover:text-gray-700 dark:hover:text-gray-200"
-          :title="'Show QR'"
+          class="shrink-0 p-2.5 rounded-lg bg-gray-100 dark:bg-gray-700 text-gray-500 dark:text-gray-400 active:scale-95 transition-colors"
+          :title="t('viewer.history.showQR')"
+          :aria-label="t('viewer.history.showQR')"
           @click="openQRModal(msg.data)"
         >
           <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -100,16 +102,20 @@ function closeQRModal(): void {
   <Teleport to="body">
     <div
       v-if="modalText"
-      class="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm"
+      class="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm p-4 pb-[max(1rem,env(safe-area-inset-bottom))]"
       @click.self="closeQRModal"
     >
-      <div class="bg-white dark:bg-gray-800 rounded-2xl shadow-2xl p-6 mx-4 max-w-sm w-full">
-        <div class="flex items-center justify-between mb-4">
-          <h3 class="text-sm font-semibold text-gray-800 dark:text-gray-100 truncate flex-1 mr-2">
+      <!-- max-h + overflow：横屏/矮屏下 256px 画布加文字会超出视口 -->
+      <div
+        class="bg-white dark:bg-gray-800 rounded-2xl shadow-2xl p-4 sm:p-6 w-full max-w-sm max-h-[85dvh] overflow-y-auto"
+      >
+        <div class="flex items-center justify-between mb-4 gap-2">
+          <h3 class="text-sm font-semibold text-gray-800 dark:text-gray-100 truncate flex-1">
             {{ modalText }}
           </h3>
           <button
-            class="p-1 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors text-gray-400 hover:text-gray-600 dark:hover:text-gray-300"
+            class="p-2.5 -mr-1 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 active:scale-95"
+            :aria-label="t('common.close')"
             @click="closeQRModal"
           >
             <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -127,7 +133,7 @@ function closeQRModal(): void {
             ref="modalCanvasRef"
             width="256"
             height="256"
-            class="w-64 h-64 rounded-xl"
+            class="block w-full h-auto max-w-64 aspect-square rounded-xl"
           ></canvas>
         </div>
         <p class="text-center text-xs text-gray-400 dark:text-gray-500 mt-4 break-all select-all">

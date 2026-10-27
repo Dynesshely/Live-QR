@@ -4,7 +4,8 @@
     "home": "Home",
     "retry": "Retry",
     "copy": "Copy",
-    "stop": "Stop Scanning"
+    "stop": "Stop Scanning",
+    "close": "Close"
   },
   "home": {
     "subtitle": "Real-time QR Code Scanning & Display System",
@@ -80,7 +81,8 @@
     "history": {
       "title": "History",
       "count": "{count} items",
-      "empty": "No data yet"
+      "empty": "No data yet",
+      "showQR": "Show QR code"
     },
     "error": {
       "invalidCode": "Share code invalid or expired",

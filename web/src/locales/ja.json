@@ -4,7 +4,8 @@
     "home": "ホーム",
     "retry": "再試行",
     "copy": "コピー",
-    "stop": "スキャン停止"
+    "stop": "スキャン停止",
+    "close": "閉じる"
   },
   "home": {
     "subtitle": "リアルタイムQRコードスキャン・表示システム",
@@ -80,7 +81,8 @@
     "history": {
       "title": "履歴",
       "count": "{count} 件",
-      "empty": "まだデータがありません"
+      "empty": "まだデータがありません",
+      "showQR": "QR コードを表示"
     },
     "error": {
       "invalidCode": "共有コードが無効または期限切れです",

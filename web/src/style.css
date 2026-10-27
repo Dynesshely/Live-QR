@@ -4,10 +4,30 @@
 @variant dark (&:where(.dark, .dark *));
 
 /* ── Base ── */
+html {
+  /* 阻止 iOS 横屏/大字号设置下自动放大正文字号 */
+  -webkit-text-size-adjust: 100%;
+  text-size-adjust: 100%;
+}
+
 body {
   font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial,
     'Noto Sans', 'PingFang SC', 'Microsoft YaHei', sans-serif;
+  /* 移动端点击时不要闪出灰色高亮块 */
+  -webkit-tap-highlight-color: transparent;
+  /* 摄像头取景等全屏场景下，避免滚动穿透到 body */
+  overscroll-behavior-y: none;
 }
+
+/*
+ * 移动端注意（本项目实测）：
+ * 1) 高度一律用 dvh 而非 vh —— 移动浏览器地址栏收放会改变可视高度，
+ *    100vh 在 iOS Safari 上比可视区高，底部按钮会被顶到屏幕外。
+ * 2) iOS Safari 在聚焦 font-size < 16px 的表单控件时会自动放大整页，
+ *    所以 select/input 在移动端不要用 text-xs/text-sm，需 ≥ text-base。
+ * 3) 刘海屏靠 env(safe-area-inset-*) 让顶部控件与底部按钮避开黑条/Home 指示条，
+ *    各组件用 pb-[max(1rem,env(safe-area-inset-bottom))] 这类任意值实现。
+ */
 
 /* ── Smooth transitions ── */
 .fade-enter-active,

@@ -2,6 +2,8 @@
 import { ref, onMounted, computed } from 'vue';
 import { useI18n } from 'vue-i18n';
 import { useScanner } from '../composables/useScanner';
+import BrandMark from './BrandMark.vue';
+import { APP_NAME } from '../brand';
 
 const emit = defineEmits<{
   back: [];
@@ -70,7 +72,7 @@ onMounted(() => {
 </script>
 
 <template>
-  <div class="min-h-screen bg-gray-900 flex flex-col">
+  <div class="min-h-dvh bg-gray-900 flex flex-col">
     <!-- Camera area -->
     <div class="relative flex-1 flex items-center justify-center bg-black overflow-hidden">
       <!-- Video preview -->
@@ -82,10 +84,10 @@ onMounted(() => {
         muted
       ></video>
 
-      <!-- Scan frame overlay -->
+      <!-- Scan frame overlay：固定 w-64 在 320px 屏上几乎顶满，改为按视口宽度收敛 -->
       <div
         v-if="state.status === 'scanning'"
-        class="relative z-10 w-64 h-64 border-2 border-green-400 rounded-3xl"
+        class="relative z-10 w-[min(70vw,16rem)] aspect-square border-2 border-green-400 rounded-3xl"
       >
         <div
           class="absolute -top-1 -left-1 w-8 h-8 border-t-4 border-l-4 border-green-400 rounded-tl-xl"
@@ -101,10 +103,27 @@ onMounted(() => {
         ></div>
       </div>
 
-      <!-- Auto-rebuilt banner -->
+      <!--
+        悬浮品牌标识（Logo + 项目名）。
+        叠在摄像头画面上方，故用半透明底 + 背景模糊保证任意取景内容下都可读；
+        pt 用 max() 避开刘海/状态栏。
+        blur 用 md（12px）而非 sm（4px）：后者对着单调墙面几乎看不出模糊，
+        等于白加。再加一道极淡的内描边，否则在深色画面上"玻璃面"没有边界、
+        看起来像是渲染坏了。
+      -->
+      <div class="absolute top-0 left-0 z-20 px-3 pt-[max(0.75rem,env(safe-area-inset-top))]">
+        <span
+          class="inline-flex items-center gap-2 rounded-full bg-black/35 backdrop-blur-md ring-1 ring-white/10 pl-2.5 pr-4 py-1.5"
+        >
+          <BrandMark :size="26" />
+          <span class="text-sm font-semibold text-white leading-none">{{ APP_NAME }}</span>
+        </span>
+      </div>
+
+      <!-- Auto-rebuilt banner：下移一行，避免与左上角品牌标识重叠 -->
       <div
         v-if="state.showRebuiltBanner"
-        class="absolute top-4 left-1/2 -translate-x-1/2 z-20 bg-green-500 text-white px-4 py-2 rounded-lg text-sm font-medium shadow-lg animate-pulse"
+        class="absolute top-16 left-1/2 -translate-x-1/2 z-20 bg-green-500 text-white px-4 py-2 rounded-lg text-sm font-medium shadow-lg animate-pulse max-w-[90vw] text-center"
       >
         {{ t('scanner.autoRebuilt') }}
       </div>
@@ -123,7 +142,7 @@ onMounted(() => {
       <!-- Error state -->
       <div
         v-if="state.status === 'error'"
-        class="relative z-10 flex flex-col items-center gap-4 text-white px-8 text-center"
+        class="relative z-10 flex flex-col items-center gap-4 text-white px-6 text-center"
       >
         <svg class="w-14 h-14 text-red-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
           <path
@@ -139,13 +158,13 @@ onMounted(() => {
         </p>
         <div class="flex gap-3 mt-2">
           <button
-            class="px-5 py-2 bg-white/20 text-white rounded-lg hover:bg-white/30 transition-colors text-sm"
+            class="px-5 py-2.5 bg-white/20 text-white rounded-lg hover:bg-white/30 transition-colors text-sm active:scale-95"
             @click="handleStart"
           >
             {{ t('common.retry') }}
           </button>
           <button
-            class="px-5 py-2 bg-white/10 text-white/70 rounded-lg hover:bg-white/20 transition-colors text-sm"
+            class="px-5 py-2.5 bg-white/10 text-white/70 rounded-lg hover:bg-white/20 transition-colors text-sm active:scale-95"
             @click="handleStop"
           >
             {{ t('common.back') }}
@@ -154,19 +173,25 @@ onMounted(() => {
       </div>
     </div>
 
-    <!-- Bottom panel -->
-    <div class="bg-gray-800 px-4 py-4">
+    <!--
+      Bottom panel.
+      pb 用 max(1rem, env(safe-area-inset-bottom))：否则 iPhone 的 Home 指示条会
+      压在「停止扫码」按钮上。
+    -->
+    <div class="bg-gray-800 px-3 sm:px-4 pt-4 pb-[max(1rem,env(safe-area-inset-bottom))]">
       <!-- Share code display -->
-      <div class="flex items-center justify-between mb-3">
-        <div class="flex items-center gap-3">
-          <span class="text-gray-400 text-sm">{{ t('scanner.shareCode') }}</span>
-          <span class="font-mono text-2xl tracking-[0.2em] text-green-400 font-bold">
+      <div class="flex flex-wrap items-center justify-between gap-2 mb-3">
+        <div class="flex items-center gap-2 sm:gap-3 min-w-0">
+          <span class="text-gray-400 text-sm shrink-0">{{ t('scanner.shareCode') }}</span>
+          <span
+            class="font-mono text-xl sm:text-2xl tracking-[0.15em] sm:tracking-[0.2em] text-green-400 font-bold"
+          >
             {{ state.shareCode || '--------' }}
           </span>
         </div>
         <button
           v-if="state.shareCode"
-          class="px-3 py-1.5 bg-gray-700 text-gray-300 rounded-lg text-xs hover:bg-gray-600 transition-colors active:scale-95"
+          class="px-3 py-2 bg-gray-700 text-gray-300 rounded-lg text-xs hover:bg-gray-600 transition-colors active:scale-95"
           @click="copyShareCode"
         >
           {{ t('common.copy') }}
@@ -196,8 +221,11 @@ onMounted(() => {
         </span>
       </div>
 
-      <!-- Status bar -->
-      <div class="flex items-center justify-between text-sm">
+      <!--
+        Status bar：原先是单行 justify-between 三段内容，窄屏上会互相挤压；
+        改为可换行（flex-wrap），并让「停止扫码」在需要时独占一行且拉满宽度。
+      -->
+      <div class="flex flex-wrap items-center gap-x-3 gap-y-2 text-sm">
         <div class="flex items-center gap-2">
           <span class="relative flex h-2.5 w-2.5">
             <span
@@ -216,8 +244,8 @@ onMounted(() => {
           <span class="text-gray-300">{{ statusLabel }}</span>
         </div>
 
-        <div class="flex items-center gap-4 text-gray-400">
-          <span>{{ t('scanner.uploadCount', { count: state.uploadCount }) }}</span>
+        <div class="flex items-center gap-3 text-gray-400 min-w-0">
+          <span class="shrink-0">{{ t('scanner.uploadCount', { count: state.uploadCount }) }}</span>
           <!-- Upload result feedback -->
           <span v-if="state.lastUploadResult === 'success'" class="text-green-400 text-xs">{{
             t('scanner.upload.success')
@@ -238,7 +266,7 @@ onMounted(() => {
         </div>
 
         <button
-          class="px-4 py-1.5 bg-red-600/80 text-white rounded-lg text-sm hover:bg-red-600 transition-colors"
+          class="ml-auto w-full sm:w-auto px-4 py-2.5 bg-red-600/80 text-white rounded-lg text-sm hover:bg-red-600 transition-colors active:scale-95"
           @click="handleStop"
         >
           {{ t('common.stop') }}

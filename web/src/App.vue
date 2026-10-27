@@ -10,6 +10,8 @@ import HistoryList from './components/HistoryList.vue';
 import StatusIndicator from './components/StatusIndicator.vue';
 import ScannerView from './components/ScannerView.vue';
 import FooterBar from './components/FooterBar.vue';
+import BrandMark from './components/BrandMark.vue';
+import { APP_NAME } from './brand';
 
 type AppMode = 'home' | 'scanner' | 'viewer';
 
@@ -62,17 +64,18 @@ function translateError(err: string): string {
 
 <template>
   <!-- ── Home: mode selection ── -->
-  <div
-    v-if="mode === 'home'"
-    class="min-h-screen bg-gray-50 dark:bg-gray-900 flex flex-col px-4 relative"
-  >
-    <!-- Theme + Language controls (top-right corner) -->
-    <div class="absolute top-4 right-4 flex items-center gap-2 z-10">
-      <!-- Language select -->
+  <div v-if="mode === 'home'" class="min-h-dvh bg-gray-50 dark:bg-gray-900 flex flex-col px-4">
+    <!--
+      Theme + Language controls.
+      原先用 absolute top-4 right-4 悬浮，在 320×568 这类矮屏上会直接压在居中的
+      Logo/标题上（实测重叠）。改为占据文档流的独立一行，任何高度都不再重叠。
+    -->
+    <div class="flex justify-end items-center gap-2 shrink-0 pt-[max(1rem,env(safe-area-inset-top))]">
+      <!-- Language select：移动端 font-size ≥16px，否则 iOS 聚焦时会放大整页 -->
       <select
         :value="locale"
         @change="setLocale(($event.target as HTMLSelectElement).value as 'zh' | 'en' | 'ja')"
-        class="appearance-none text-sm font-medium pl-3 pr-8 py-2 rounded-xl bg-white dark:bg-gray-800 shadow-md hover:shadow-lg transition-all text-gray-600 dark:text-gray-300 cursor-pointer border-0 outline-none focus:ring-2 focus:ring-blue-500"
+        class="appearance-none text-base lg:text-sm font-medium pl-3 pr-8 py-2 rounded-xl bg-white dark:bg-gray-800 shadow-md hover:shadow-lg transition-all text-gray-600 dark:text-gray-300 cursor-pointer border-0 outline-none focus:ring-2 focus:ring-blue-500"
       >
         <option v-for="loc in availableLocales" :key="loc" :value="loc">
           {{ localeLabels[loc] }}
@@ -81,7 +84,7 @@ function translateError(err: string): string {
 
       <!-- Theme toggle -->
       <button
-        class="p-2.5 rounded-xl bg-white dark:bg-gray-800 shadow-md hover:shadow-lg transition-all text-gray-600 dark:text-gray-300 hover:text-gray-800 dark:hover:text-white"
+        class="p-2.5 rounded-xl bg-white dark:bg-gray-800 shadow-md hover:shadow-lg transition-all text-gray-600 dark:text-gray-300 hover:text-gray-800 dark:hover:text-white active:scale-95"
         :title="isDark ? t('theme.switchToLight') : t('theme.switchToDark')"
         @click="toggleTheme"
       >
@@ -107,54 +110,29 @@ function translateError(err: string): string {
     </div>
 
     <!-- Main content: centered vertically -->
-    <div class="flex-1 flex flex-col items-center justify-center">
-      <div class="text-center mb-10">
+    <div class="flex-1 flex flex-col items-center justify-center py-6 sm:py-10">
+      <div class="text-center mb-8 sm:mb-10">
         <!-- Logo -->
-        <div class="mb-6 flex justify-center">
-          <svg class="w-20 h-20" viewBox="0 0 64 64" fill="none">
-            <rect x="4" y="4" width="56" height="56" rx="12" fill="#2563EB" />
-            <rect x="12" y="12" width="12" height="12" rx="2" fill="white" />
-            <rect x="15" y="15" width="6" height="6" rx="1" fill="#2563EB" />
-            <rect x="40" y="12" width="12" height="12" rx="2" fill="white" />
-            <rect x="43" y="15" width="6" height="6" rx="1" fill="#2563EB" />
-            <rect x="12" y="40" width="12" height="12" rx="2" fill="white" />
-            <rect x="15" y="43" width="6" height="6" rx="1" fill="#2563EB" />
-            <circle cx="44" cy="46" r="3" fill="#22C55E" />
-            <circle cx="44" cy="46" r="3" fill="#22C55E" opacity="0.4">
-              <animate attributeName="r" from="3" to="7" dur="1.5s" repeatCount="indefinite" />
-              <animate
-                attributeName="opacity"
-                from="0.4"
-                to="0"
-                dur="1.5s"
-                repeatCount="indefinite"
-              />
-            </circle>
-            <path d="M34 34l8-8" stroke="white" stroke-width="2.5" stroke-linecap="round" />
-            <path
-              d="M36 26h6v6"
-              stroke="white"
-              stroke-width="2.5"
-              stroke-linecap="round"
-              stroke-linejoin="round"
-            />
-          </svg>
+        <div class="mb-4 sm:mb-6 flex justify-center">
+          <BrandMark :size="80" pulse />
         </div>
-        <h1 class="text-5xl font-bold text-gray-800 dark:text-gray-100 mb-3">Live QR</h1>
-        <p class="text-gray-500 dark:text-gray-400 text-lg">{{ t('home.subtitle') }}</p>
+        <h1 class="text-4xl sm:text-5xl font-bold text-gray-800 dark:text-gray-100 mb-3">
+          Live QR
+        </h1>
+        <p class="text-base sm:text-lg text-gray-500 dark:text-gray-400">{{ t('home.subtitle') }}</p>
       </div>
 
-      <div class="grid grid-cols-1 sm:grid-cols-2 gap-6 w-full max-w-lg">
+      <div class="grid grid-cols-1 sm:grid-cols-2 gap-4 sm:gap-6 w-full max-w-lg">
         <!-- Scanner mode -->
         <button
-          class="group relative bg-white dark:bg-gray-800 rounded-2xl shadow-lg dark:shadow-gray-900/50 p-8 hover:shadow-xl transition-all hover:-translate-y-1 active:scale-[0.98]"
+          class="group relative bg-white dark:bg-gray-800 rounded-2xl shadow-lg dark:shadow-gray-900/50 p-6 sm:p-8 hover:shadow-xl transition-all hover:-translate-y-1 active:scale-[0.98]"
           @click="mode = 'scanner'"
         >
           <div
-            class="w-16 h-16 bg-green-100 dark:bg-green-900/30 rounded-2xl flex items-center justify-center mx-auto mb-4 group-hover:bg-green-200 dark:group-hover:bg-green-900/50 transition-colors"
+            class="w-14 h-14 sm:w-16 sm:h-16 bg-green-100 dark:bg-green-900/30 rounded-2xl flex items-center justify-center mx-auto mb-3 sm:mb-4 group-hover:bg-green-200 dark:group-hover:bg-green-900/50 transition-colors"
           >
             <svg
-              class="w-8 h-8 text-green-600 dark:text-green-400"
+              class="w-7 h-7 sm:w-8 sm:h-8 text-green-600 dark:text-green-400"
               fill="none"
               stroke="currentColor"
               viewBox="0 0 24 24"
@@ -183,14 +161,14 @@ function translateError(err: string): string {
 
         <!-- Viewer mode -->
         <button
-          class="group relative bg-white dark:bg-gray-800 rounded-2xl shadow-lg dark:shadow-gray-900/50 p-8 hover:shadow-xl transition-all hover:-translate-y-1 active:scale-[0.98]"
+          class="group relative bg-white dark:bg-gray-800 rounded-2xl shadow-lg dark:shadow-gray-900/50 p-6 sm:p-8 hover:shadow-xl transition-all hover:-translate-y-1 active:scale-[0.98]"
           @click="mode = 'viewer'"
         >
           <div
-            class="w-16 h-16 bg-blue-100 dark:bg-blue-900/30 rounded-2xl flex items-center justify-center mx-auto mb-4 group-hover:bg-blue-200 dark:group-hover:bg-blue-900/50 transition-colors"
+            class="w-14 h-14 sm:w-16 sm:h-16 bg-blue-100 dark:bg-blue-900/30 rounded-2xl flex items-center justify-center mx-auto mb-3 sm:mb-4 group-hover:bg-blue-200 dark:group-hover:bg-blue-900/50 transition-colors"
           >
             <svg
-              class="w-8 h-8 text-blue-600 dark:text-blue-400"
+              class="w-7 h-7 sm:w-8 sm:h-8 text-blue-600 dark:text-blue-400"
               fill="none"
               stroke="currentColor"
               viewBox="0 0 24 24"
@@ -225,8 +203,8 @@ function translateError(err: string): string {
 
   <!-- ── Viewer mode: input ── -->
   <template v-if="mode === 'viewer' && !showViewerDashboard()">
-    <div class="min-h-screen flex flex-col">
-      <div class="flex-1 flex items-center justify-center">
+    <div class="min-h-dvh flex flex-col">
+      <div class="flex-1 flex items-center justify-center py-6">
         <ShareCodeInput
           :disabled="viewerStatus === 'verifying'"
           :error="errorMessage"
@@ -240,18 +218,21 @@ function translateError(err: string): string {
 
   <!-- ── Viewer mode: dashboard ── -->
   <template v-if="mode === 'viewer' && showViewerDashboard()">
-    <div class="min-h-screen bg-gray-50 dark:bg-gray-900 flex flex-col">
+    <div class="min-h-dvh bg-gray-50 dark:bg-gray-900 flex flex-col">
       <!-- Header bar -->
       <header
         class="bg-white dark:bg-gray-800 shadow-sm border-b border-gray-200 dark:border-gray-700"
       >
-        <div class="max-w-6xl mx-auto px-4 py-3">
+        <div
+          class="max-w-6xl mx-auto px-3 sm:px-4 py-2 sm:py-3 pt-[max(0.5rem,env(safe-area-inset-top))]"
+        >
           <!-- Top row: nav controls (compact on all screens) -->
           <div class="flex items-center justify-between">
-            <div class="flex items-center gap-2 sm:gap-3">
+            <!-- min-w-0 + truncate：窄屏（320px）下让品牌名先被截断，而不是把右侧控件挤出屏幕 -->
+            <div class="flex items-center gap-1 sm:gap-3 min-w-0">
               <!-- Back icon (no text) -->
               <button
-                class="p-1.5 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200"
+                class="p-2.5 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200 active:scale-95"
                 :title="t('common.home')"
                 @click="handleViewerDisconnect"
               >
@@ -265,23 +246,19 @@ function translateError(err: string): string {
                 </svg>
               </button>
 
-              <!-- Small logo (replaces text title) -->
-              <svg class="w-7 h-7 shrink-0" viewBox="0 0 64 64" fill="none">
-                <rect x="4" y="4" width="56" height="56" rx="12" fill="#2563EB" />
-                <rect x="12" y="12" width="12" height="12" rx="2" fill="white" />
-                <rect x="15" y="15" width="6" height="6" rx="1" fill="#2563EB" />
-                <rect x="40" y="12" width="12" height="12" rx="2" fill="white" />
-                <rect x="43" y="15" width="6" height="6" rx="1" fill="#2563EB" />
-                <rect x="12" y="40" width="12" height="12" rx="2" fill="white" />
-                <rect x="15" y="43" width="6" height="6" rx="1" fill="#2563EB" />
-                <circle cx="44" cy="46" r="3" fill="#22C55E" />
-              </svg>
+              <!-- Logo + project name：图标刻意小于字号视觉尺度，避免头重脚轻 -->
+              <BrandMark :size="24" />
+              <span
+                class="text-base sm:text-lg font-semibold text-gray-800 dark:text-gray-100 truncate"
+              >
+                {{ APP_NAME }}
+              </span>
             </div>
 
             <div class="flex items-center gap-1 sm:gap-2">
               <!-- Switch code (icon only) -->
               <button
-                class="p-1.5 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200"
+                class="p-2.5 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200 active:scale-95"
                 :title="t('viewer.switchCode')"
                 @click="handleSwitchCode"
               >
@@ -301,7 +278,7 @@ function translateError(err: string): string {
                 @change="
                   setLocale(($event.target as HTMLSelectElement).value as 'zh' | 'en' | 'ja')
                 "
-                class="appearance-none text-xs font-medium pl-1.5 pr-6 py-1.5 rounded-lg bg-transparent hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors text-gray-600 dark:text-gray-300 cursor-pointer border-0 outline-none focus:ring-2 focus:ring-blue-500"
+                class="appearance-none text-base lg:text-xs font-medium pl-1.5 pr-6 py-2.5 rounded-lg bg-transparent hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors text-gray-600 dark:text-gray-300 cursor-pointer border-0 outline-none focus:ring-2 focus:ring-blue-500"
               >
                 <option v-for="loc in availableLocales" :key="loc" :value="loc">
                   {{ localeLabels[loc] }}
@@ -310,7 +287,7 @@ function translateError(err: string): string {
 
               <!-- Theme toggle -->
               <button
-                class="p-1.5 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors text-gray-600 dark:text-gray-300"
+                class="p-2.5 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors text-gray-600 dark:text-gray-300 active:scale-95"
                 :title="isDark ? t('theme.switchToLight') : t('theme.switchToDark')"
                 @click="toggleTheme"
               >
@@ -341,10 +318,11 @@ function translateError(err: string): string {
           </div>
 
           <!-- Bottom row: share code + status (moved out of nav) -->
-          <div class="flex items-center justify-between mt-2 gap-2">
+          <!-- flex-wrap：窄屏下分享码与状态胶囊宁可换行，也不要把彼此挤变形 -->
+          <div class="flex flex-wrap items-center justify-between mt-2 gap-x-2 gap-y-1.5">
             <span
               v-if="shareCode"
-              class="font-mono text-base sm:text-lg tracking-wider bg-blue-50 dark:bg-blue-900/30 text-blue-700 dark:text-blue-400 px-3 py-0.5 rounded-lg"
+              class="font-mono text-base sm:text-lg tracking-wider bg-blue-50 dark:bg-blue-900/30 text-blue-700 dark:text-blue-400 px-2.5 sm:px-3 py-0.5 rounded-lg"
             >
               {{ shareCode }}
             </span>
@@ -359,11 +337,11 @@ function translateError(err: string): string {
       </header>
 
       <!-- Expired banner -->
-      <div v-if="viewerStatus === 'expired'" class="max-w-6xl mx-auto mt-4 px-4">
+      <div v-if="viewerStatus === 'expired'" class="max-w-6xl w-full mx-auto mt-4 px-3 sm:px-4">
         <div
-          class="bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-xl p-4 flex items-center justify-between"
+          class="bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-xl p-4 flex flex-wrap items-center justify-between gap-3"
         >
-          <div class="mr-10">
+          <div class="min-w-0 flex-1">
             <p class="text-red-700 dark:text-red-400 font-medium">
               {{ t('viewer.expiredBanner') }}
             </p>
@@ -372,7 +350,7 @@ function translateError(err: string): string {
             </p>
           </div>
           <button
-            class="px-4 py-2 bg-red-600 text-white rounded-lg text-sm font-medium hover:bg-red-700 transition-colors shrink-0"
+            class="px-4 py-2.5 bg-red-600 text-white rounded-lg text-sm font-medium hover:bg-red-700 transition-colors shrink-0 active:scale-95"
             @click="handleSwitchCode"
           >
             {{ t('viewer.reenterCode') }}
@@ -381,8 +359,8 @@ function translateError(err: string): string {
       </div>
 
       <!-- Main content -->
-      <main class="flex-1 max-w-6xl mx-auto px-4 py-8 w-full">
-        <div class="grid grid-cols-1 lg:grid-cols-2 gap-8">
+      <main class="flex-1 max-w-6xl mx-auto px-3 sm:px-4 py-5 sm:py-8 w-full">
+        <div class="grid grid-cols-1 lg:grid-cols-2 gap-5 sm:gap-8">
           <div class="flex flex-col items-center lg:items-start">
             <QRDisplay
               :text="latestText"
@@ -390,7 +368,7 @@ function translateError(err: string): string {
               :reconnect-attempt="reconnectAttempt"
             />
           </div>
-          <div>
+          <div class="w-full min-w-0">
             <HistoryList :messages="messages" />
           </div>
         </div>

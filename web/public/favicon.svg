@@ -1,27 +1,20 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" fill="none">
-  <!-- Background rounded square -->
-  <rect x="4" y="4" width="56" height="56" rx="12" fill="#2563EB"/>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" width="64" height="64" role="img" aria-label="Live QR">
+  <title>Live QR</title>
+  <defs>
+    <linearGradient id="lq-bg" x1="0" y1="0" x2="64" y2="64" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#3B82F6"/>
+      <stop offset="1" stop-color="#1D4ED8"/>
+    </linearGradient>
+  </defs>
+  <rect width="64" height="64" rx="14" fill="url(#lq-bg)"/>
+  <g>
+    <rect x="12" y="12" width="12" height="12" rx="3.5" fill="none" stroke="#fff" stroke-width="4"/>
+    <rect x="40" y="12" width="12" height="12" rx="3.5" fill="none" stroke="#fff" stroke-width="4"/>
+    <rect x="12" y="40" width="12" height="12" rx="3.5" fill="none" stroke="#fff" stroke-width="4"/>
 
-  <!-- QR-like pattern: top-left finder -->
-  <rect x="12" y="12" width="12" height="12" rx="2" fill="white"/>
-  <rect x="15" y="15" width="6" height="6" rx="1" fill="#2563EB"/>
-
-  <!-- QR-like pattern: top-right finder -->
-  <rect x="40" y="12" width="12" height="12" rx="2" fill="white"/>
-  <rect x="43" y="15" width="6" height="6" rx="1" fill="#2563EB"/>
-
-  <!-- QR-like pattern: bottom-left finder -->
-  <rect x="12" y="40" width="12" height="12" rx="2" fill="white"/>
-  <rect x="15" y="43" width="6" height="6" rx="1" fill="#2563EB"/>
-
-  <!-- Live indicator dot -->
-  <circle cx="44" cy="46" r="3" fill="#22C55E"/>
-  <circle cx="44" cy="46" r="3" fill="#22C55E" opacity="0.4">
-    <animate attributeName="r" from="3" to="7" dur="1.5s" repeatCount="indefinite"/>
-    <animate attributeName="opacity" from="0.4" to="0" dur="1.5s" repeatCount="indefinite"/>
-  </circle>
-
-  <!-- Arrow (scan beam) -->
-  <path d="M34 34l8-8" stroke="white" stroke-width="2.5" stroke-linecap="round"/>
-  <path d="M36 26h6v6" stroke="white" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/>
+  </g>
+  <g>
+    <circle cx="46" cy="46" r="3.4" fill="#22C55E"/>
+    <circle cx="46" cy="46" r="7.6" fill="none" stroke="#22C55E" stroke-width="3.2" opacity="0.85"/>
+  </g>
 </svg>

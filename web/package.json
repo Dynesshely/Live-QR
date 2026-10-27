@@ -10,6 +10,7 @@
     "typecheck": "vue-tsc --noEmit",
     "lint": "eslint src/",
     "format": "prettier --write \"src/**/*.{ts,vue,css}\"",
+    "icon": "node scripts/render-icon.mjs",
     "test": "vitest run",
     "test:watch": "vitest"
   },
