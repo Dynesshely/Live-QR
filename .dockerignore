@@ -13,6 +13,10 @@
 # Logs & temp
 *.log
 *.tmp
+# 审计日志含明文文本与 IP/UA：绝不能进构建上下文（缓存、传输层都会留下副本）
+**/logs/
+**/logs/**
+**/*.jsonl
 
 # OS
 .DS_Store

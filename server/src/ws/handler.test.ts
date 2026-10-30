@@ -10,8 +10,10 @@ import {
   isWsPath,
   toHandshakeRequest,
   type HandshakeRequest,
+  type WSServerDeps,
 } from './handler.js';
 import { createChannel, shutdownAll } from '../services/channelStore.js';
+import type { AuditRecorder } from '../services/auditLog.js';
 import { clearAttempts } from '../services/attemptStore.js';
 import type { AppConfig } from '../config.js';
 import { FakeWebSocket, mockConfig } from '../testing/mocks.js';
@@ -126,8 +128,8 @@ interface TestServer {
   clients: WebSocket[];
 }
 
-async function startTestServer(config: AppConfig): Promise<TestServer> {
-  const wss = createWSServer(config);
+async function startTestServer(config: AppConfig, deps: WSServerDeps = {}): Promise<TestServer> {
+  const wss = createWSServer(config, deps);
   const server = createServer();
   attachWebSocketServer(wss, server);
 
@@ -341,6 +343,138 @@ describe('WebSocket handshake over real sockets', () => {
     });
 
     expect(await client.waitFor('welcome')).toMatchObject({ shareCode: ch.shareCode });
+  });
+});
+
+// ── Audit trail (compliance) ──
+
+interface RecordedConnect {
+  shareCode: string;
+  ip: string;
+  ua: string;
+}
+
+interface RecordedDisconnect {
+  shareCode: string;
+  ip: string;
+  durationMs: number;
+}
+
+function fakeAudit(): AuditRecorder & {
+  connects: RecordedConnect[];
+  disconnects: RecordedDisconnect[];
+} {
+  const connects: RecordedConnect[] = [];
+  const disconnects: RecordedDisconnect[] = [];
+
+  return {
+    connects,
+    disconnects,
+    recordUpload() {},
+    recordViewerConnect(input) {
+      connects.push(input);
+    },
+    recordViewerDisconnect(input) {
+      disconnects.push(input);
+    },
+  };
+}
+
+describe('WebSocket audit trail', () => {
+  let ctx: TestServer | null = null;
+
+  afterEach(async () => {
+    if (ctx) {
+      await stopTestServer(ctx);
+      ctx = null;
+    }
+  });
+
+  it('records viewer_connect (with real client IP/UA) and viewer_disconnect (with duration)', async () => {
+    const audit = fakeAudit();
+    const config = mockConfig({ TRUST_PROXY: 'loopback' });
+    ctx = await startTestServer(config, { audit });
+
+    const ch = createChannel(config);
+    const client = await openClient(ctx.port, '/ws', ch.shareCode, {
+      'user-agent': 'viewer-agent',
+      'x-forwarded-for': '203.0.113.7, 127.0.0.1',
+    });
+    ctx.clients.push(client.ws);
+    await client.waitFor('welcome');
+
+    expect(audit.connects).toHaveLength(1);
+    expect(audit.connects[0]).toEqual({
+      shareCode: ch.shareCode,
+      ip: '203.0.113.7', // real viewer behind the loopback proxy, not 127.0.0.1
+      ua: 'viewer-agent',
+    });
+
+    client.ws.close();
+    await client.closed;
+
+    expect(audit.disconnects).toHaveLength(1);
+    expect(audit.disconnects[0]).toMatchObject({ shareCode: ch.shareCode, ip: '203.0.113.7' });
+    expect(audit.disconnects[0].durationMs).toBeGreaterThanOrEqual(0);
+  });
+
+  it('ignores X-Forwarded-For when trust proxy is disabled', async () => {
+    const audit = fakeAudit();
+    const config = mockConfig({ TRUST_PROXY: 'false' });
+    ctx = await startTestServer(config, { audit });
+
+    const ch = createChannel(config);
+    const client = await openClient(ctx.port, '/ws', ch.shareCode, {
+      'x-forwarded-for': '203.0.113.7',
+    });
+    ctx.clients.push(client.ws);
+    await client.waitFor('welcome');
+
+    expect(audit.connects[0]).toMatchObject({ ip: '127.0.0.1' });
+    client.ws.close();
+    await client.closed;
+  });
+
+  it('does not record viewers rejected by the viewer limit', async () => {
+    const audit = fakeAudit();
+    const config = mockConfig({ MAX_VIEWERS_PER_CHANNEL: 1 });
+    ctx = await startTestServer(config, { audit });
+
+    const ch = createChannel(config);
+    const first = await openClient(ctx.port, '/ws', ch.shareCode);
+    ctx.clients.push(first.ws);
+    await first.waitFor('welcome');
+
+    const second = await openClient(ctx.port, '/ws', ch.shareCode);
+    ctx.clients.push(second.ws);
+    expect((await second.closed).code).toBe(4002);
+
+    // Only the accepted viewer produced a connect record.
+    expect(audit.connects).toHaveLength(1);
+  });
+
+  it('never breaks a connection when the audit recorder throws', async () => {
+    const exploding: AuditRecorder = {
+      recordUpload() {
+        throw new Error('disk on fire');
+      },
+      recordViewerConnect() {
+        throw new Error('disk on fire');
+      },
+      recordViewerDisconnect() {
+        throw new Error('disk on fire');
+      },
+    };
+    const config = mockConfig();
+    ctx = await startTestServer(config, { audit: exploding });
+
+    const ch = createChannel(config);
+    const client = await openClient(ctx.port, '/ws', ch.shareCode);
+    ctx.clients.push(client.ws);
+
+    expect(await client.waitFor('welcome')).toMatchObject({ shareCode: ch.shareCode });
+    client.ws.close();
+    await expect(client.closed).resolves.toBeDefined();
   });
 });
 

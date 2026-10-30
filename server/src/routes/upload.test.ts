@@ -2,15 +2,43 @@ import { describe, it, expect, beforeEach } from 'vitest';
 import request from 'supertest';
 import type express from 'express';
 import { createApp } from '../app.js';
-import { shutdownAll, getChannel } from '../services/channelStore.js';
+import { addClient, getChannel, removeClient, shutdownAll } from '../services/channelStore.js';
 import { clearAttempts } from '../services/attemptStore.js';
+import type { AuditRecorder } from '../services/auditLog.js';
 import type { AppConfig } from '../config.js';
-import { mockConfig } from '../testing/mocks.js';
+import { FakeWebSocket, mockConfig } from '../testing/mocks.js';
 
-function makeApp(overrides: Partial<AppConfig> = {}): express.Application {
+function makeApp(overrides: Partial<AppConfig> = {}, audit?: AuditRecorder): express.Application {
   return createApp(
     mockConfig({ UPLOAD_RATE_LIMIT: 100, VERIFY_RATE_LIMIT: 100, ...overrides }),
+    { audit },
   );
+}
+
+interface RecordedUpload {
+  shareCode: string;
+  uploaderIp: string;
+  uploaderUa: string;
+  text: string;
+  recipients: Array<{ ip: string; ua: string }>;
+}
+
+function fakeAudit(): AuditRecorder & { uploads: RecordedUpload[] } {
+  const uploads: RecordedUpload[] = [];
+  return {
+    uploads,
+    recordUpload(input) {
+      uploads.push(input);
+    },
+    recordViewerConnect() {},
+    recordViewerDisconnect() {},
+  };
+}
+
+function addViewer(shareCode: string, ip: string, ua: string): FakeWebSocket {
+  const socket = new FakeWebSocket();
+  addClient(shareCode, FakeWebSocket.asWS(socket), { ip, ua });
+  return socket;
 }
 
 async function createChannelVia(app: express.Application, body: object = {}) {
@@ -143,6 +171,102 @@ describe('POST /api/upload', () => {
       .send({ shareCode, text: 'b' });
     expect(blocked.status).toBe(429);
     expect(blocked.body.error).toBe('RATE_LIMITED');
+  });
+
+  it('records an audit upload with the exact text, uploader identity and online recipients', async () => {
+    const audit = fakeAudit();
+    const audited = makeApp({}, audit);
+    const shareCode = await createChannelVia(audited);
+
+    addViewer(shareCode, '198.51.100.2', 'viewer-a');
+    addViewer(shareCode, '198.51.100.3', 'viewer-b');
+
+    const text = '  hi\n"quoted" \u{1F600}  ';
+    const res = await request(audited)
+      .post('/api/upload')
+      .set('User-Agent', 'uploader-ua')
+      .send({ shareCode, text });
+
+    expect(res.status).toBe(200);
+    expect(audit.uploads).toHaveLength(1);
+    expect(audit.uploads[0]).toEqual({
+      shareCode,
+      uploaderIp: '127.0.0.1',
+      uploaderUa: 'uploader-ua',
+      text, // never trimmed or truncated
+      recipients: [
+        { ip: '198.51.100.2', ua: 'viewer-a' },
+        { ip: '198.51.100.3', ua: 'viewer-b' },
+      ],
+    });
+  });
+
+  it('does not count viewers that join after the broadcast or already left', async () => {
+    const audit = fakeAudit();
+    const audited = makeApp({}, audit);
+    const shareCode = await createChannelVia(audited);
+
+    const first = addViewer(shareCode, '198.51.100.2', 'viewer-a');
+    await request(audited).post('/api/upload').send({ shareCode, text: 'one' });
+
+    removeClient(shareCode, FakeWebSocket.asWS(first));
+    addViewer(shareCode, '198.51.100.3', 'viewer-b');
+    await request(audited).post('/api/upload').send({ shareCode, text: 'two' });
+
+    expect(audit.uploads[0].recipients).toEqual([{ ip: '198.51.100.2', ua: 'viewer-a' }]);
+    expect(audit.uploads[1].recipients).toEqual([{ ip: '198.51.100.3', ua: 'viewer-b' }]);
+  });
+
+  it('records the real client IP from X-Forwarded-For behind a trusted loopback proxy', async () => {
+    const audit = fakeAudit();
+    const proxied = makeApp({ TRUST_PROXY: 'loopback' }, audit);
+    const shareCode = await createChannelVia(proxied);
+
+    await request(proxied)
+      .post('/api/upload')
+      .set('X-Forwarded-For', '203.0.113.7, 127.0.0.1')
+      .send({ shareCode, text: 'behind caddy' });
+
+    expect(audit.uploads[0].uploaderIp).toBe('203.0.113.7');
+  });
+
+  it('ignores a client-supplied X-Forwarded-For when trust proxy is disabled', async () => {
+    const audit = fakeAudit();
+    const direct = makeApp({ TRUST_PROXY: 'false' }, audit);
+    const shareCode = await createChannelVia(direct);
+
+    await request(direct)
+      .post('/api/upload')
+      .set('X-Forwarded-For', '203.0.113.7')
+      .send({ shareCode, text: 'direct' });
+
+    expect(audit.uploads[0].uploaderIp).toBe('127.0.0.1');
+  });
+
+  it('never fails an upload when the audit recorder throws', async () => {
+    const exploding: AuditRecorder = {
+      recordUpload() {
+        throw new Error('disk on fire');
+      },
+      recordViewerConnect() {},
+      recordViewerDisconnect() {},
+    };
+    const audited = makeApp({}, exploding);
+    const shareCode = await createChannelVia(audited);
+
+    const res = await request(audited).post('/api/upload').send({ shareCode, text: 'still ok' });
+    expect(res.status).toBe(200);
+  });
+
+  it('does not write an audit record for a rejected upload', async () => {
+    const audit = fakeAudit();
+    const audited = makeApp({ MAX_TEXT_LENGTH: 5 }, audit);
+    const shareCode = await createChannelVia(audited);
+
+    await request(audited).post('/api/upload').send({ shareCode, text: 'far too long' });
+    await request(audited).post('/api/upload').send({ shareCode: '12345678', text: 'no channel' });
+
+    expect(audit.uploads).toEqual([]);
   });
 
   it('does not consume upload quota for a malformed share code', async () => {

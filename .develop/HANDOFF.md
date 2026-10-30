@@ -7,8 +7,9 @@
 > 停在工作区（含未跟踪的 `.develop/HANDOFF.md`、`.develop/HANDOFF-AUDIT.md`、`.github/`）。
 > 接手第一步先 `git status` 确认；提交需要 GPG 解锁，见 §14。
 >
-> 本轮门禁实测：**server 134 passed（9 文件）· web 59 passed（10 文件）· 双 lint / 双 typecheck /
-> 双 build 全绿**。与旧文档冲突时，**以本文为准**；历史文档的时效说明见 §15。
+> 本轮门禁实测：**server 193 passed（11 文件）· web 60 passed（10 文件）· 双 lint / 双 typecheck /
+> 双 build 全绿**（含审计日志子系统与合规文案的用例；审计用例仍在补充，准确值以 `pnpm test` 输出为准）。与旧文档冲突时，
+> **以本文为准**；历史文档的时效说明见 §15。
 
 ---
 
@@ -63,6 +64,8 @@
   TLS 通常由外层网关（EdgeOne / openresty）终止，容器内只跑 HTTP（§11）。
 - 访问日志中间件在 body parser **之前**（`server/src/app.ts:20,25`），所以被 body 大小/JSON
   解析拒绝的请求也会被记录；`/api/health` 不记（`server/src/middleware/accessLog.ts:12`）。
+- **审计日志副本**：开启时把每次上传（含明文文本、收发双方 IP/UA）与观看者连接/断开
+  追加到磁盘 `AUDIT_LOG_DIR/transfer-YYYY-MM-DD.jsonl`，默认保留 243 天（详见 §2.5/§16.4）。
 
 ### 2.1 运行时关键参数（`server/src/config.ts`，可用环境变量覆盖）
 
@@ -120,13 +123,31 @@
 - 通道关闭（过期/主动 expire/关服）时**不广播** `viewer_count`，只发 `channel_expired` 再关闭。
 - 前端 `useWebSocket` 两种字段都接受（`count` 优先），见 `web/src/types.ts:35-41`。
 
-### 2.5 访问日志（合规边界）
+### 2.5 日志：访问日志（stdout）与审计日志（磁盘）
 
-- 每请求一行 JSON：`method / path / status / durationMs / clientIp / userAgent`，
+**访问日志 / 业务事件**（stdout，一行一个 JSON）：
+
+- 每请求：`method / path / status / durationMs / clientIp / userAgent`，
   `/api/health` 排除（`accessLog.ts:11-29`、`logger.ts:58-72`）。
-- **绝不记录请求体与上传文本**；业务事件日志也只用 `shareCode` + 文本长度
-  （`server/src/routes/upload.ts:66`）。
-- 日志输出到 stdout（error 走 stderr），保留/轮转由部署方负责（§16）。
+- 业务事件只用 `event / timestamp / shareCode / clientIp / message`；上传事件额外只有
+  **文本长度**（`server/src/routes/upload.ts:66`）。
+- **这套日志不含请求体与上传文本**；输出到 stdout（error 走 stderr），轮转由部署方负责。
+
+**审计日志**（独立子系统，默认开启，写入磁盘）：
+
+- 目录 `AUDIT_LOG_DIR`（默认 `logs`，相对 server 进程 cwd），文件
+  `transfer-YYYY-MM-DD.jsonl`（**UTC 日期**），一行一个 JSON、追加写；
+  目录 `0700`、文件 `0600`。
+- `upload` 记录包含**文本原文** `text`、`textLength`、`uploaderIp`、`uploaderUa`、
+  `recipients:[{ip, ua}]`（广播时在线的观看者快照）；另有 `viewer_connect` / `viewer_disconnect` /
+  `audit_started` / `retention_purge`（字段见 §16.4）。
+- **自动清理**：启动时 + 每次跨天滚动时删除早于「今天 − `AUDIT_LOG_RETENTION_DAYS`」的文件；
+  默认 **243 天（约 8 个月）**，范围 1–3650。
+- 容器内目录 `/var/log/live-qr`，由 compose 挂**命名卷** `live-qr-logs`（§11）；
+  卷里是明文副本，读取权限按敏感数据处理（§16.4）。
+- 日志量随「上传量 × 文本长度」增长，高流量部署要监控卷容量并考虑调小保留天数。
+- **审计写入绝不影响请求**：所有写入 fire-and-forget，失败只向 stderr 记
+  `audit_write_failed`；目录不可写时服务照常启动（审计降级，部署后要检查卷权限）。
 
 ---
 
@@ -171,15 +192,16 @@ Live-QR/
 │       ├── types.ts                # 类型、WS 消息、日志事件与字段
 │       ├── logger.ts               # JSON-per-line + access()
 │       ├── routes/{channel,upload}.ts
-│       ├── services/{channelStore,attemptStore}.ts
+│       ├── services/{channelStore,attemptStore,auditLog,clientIp}.ts
 │       ├── ws/handler.ts           # 握手判定（纯函数）+ 心跳 + 观者上限
 │       ├── middleware/{accessLog,validate,rateLimiter,errorHandler}.ts
 │       ├── testing/                # 测试辅助（不进生产构建）
 │       ├── middleware/{accessLog,errorHandler}.test.ts   # 本轮新增
 │       ├── server.test.ts                                # 本轮新增（createServers / EADDRINUSE / close）
 │       ├── ws/handler.test.ts                            # 本轮新增（握手 / 心跳 / 观者上限）
+│       ├── services/{auditLog,clientIp}.test.ts          # 审计日志子系统
 │       └── 其余既有测试            # config / rateLimiter / channel / upload / channelStore
-│                                   # 合计 9 个测试文件 / 134 用例
+│                                   # 合计 11 个测试文件 / 193 用例（持续增加）
 ├── web/                            # 前端
 │   ├── vite.config.ts              # 41605，/api→41601，/ws→41602（ws:true）
 │   ├── scripts/render-icon.mjs     # 图标单一几何定义 → SVG + PNG（pnpm icon）
@@ -205,10 +227,10 @@ Live-QR/
 ├── Dockerfile                      # 三阶段：web → server（tsconfig.build）→ runtime（tini/非 root/HEALTHCHECK）
 ├── docker-compose.yml              # env_file + 变量默认值 + healthcheck + restart
 ├── entrypoint.sh                   # 信号转发 + 双进程监督（子进程死则容器退出）
-└── .env.example                    # 13 个真实键（11 server + 2 部署）
+└── .env.example                    # 16 个真实键（14 server + 2 部署）
 ```
 
-规模：server/src 16 个非测试 `.ts`（约 1.7k 行，另有 9 个测试文件）；web/src 38 个 `.ts/.vue`（约 5.0k 行，含 10 个测试文件）。
+规模：server/src 18 个非测试 `.ts`（约 2.5k 行，另有 11 个测试文件）；web/src 38 个 `.ts/.vue`（约 5.0k 行，含 10 个测试文件）。
 
 ---
 
@@ -341,7 +363,7 @@ Live-QR/
 
 ## 7. 配置项
 
-### 7.1 server 读取的 11 个键
+### 7.1 server 读取的 14 个键
 
 | 键 | 默认 | 范围 / 说明 |
 | --- | --- | --- |
@@ -356,6 +378,9 @@ Live-QR/
 | `MAX_TEXT_LENGTH` | 2000 | 1–10000（码点） |
 | `TRUST_PROXY` | **`loopback`（新增）** | `false` / 跳数 / `loopback` / `linklocal` / `uniquelocal` / IP / CIDR；可逗号列表 |
 | `WS_ALLOWED_ORIGINS` | **空（新增）** | 逗号分隔 Origin，`*` = 任意；空 = 同源 |
+| `AUDIT_LOG_ENABLED` | `true` | **新增**：审计日志开关；true/false（也接受 1/0） |
+| `AUDIT_LOG_DIR` | `logs` | **新增**：审计日志目录（相对 server cwd）；容器内固定 `/var/log/live-qr` |
+| `AUDIT_LOG_RETENTION_DAYS` | 243 | **新增**：保留天数 1–3650（≈8 个月），按 UTC 日期切文件 |
 
 ### 7.2 部署侧 2 个键（server 不读）
 
@@ -418,8 +443,8 @@ export PATH="$HOME/.local/bin:$PATH"
 **没有 root script**，必须分别进两个包：
 
 ```bash
-cd server && pnpm test        # 134 passed / 9 files
-cd web    && pnpm test        #  59 passed / 10 files
+cd server && pnpm test        # 193 passed / 11 files（持续增长中，以实际输出为准）
+cd web    && pnpm test        #  60 passed / 10 files
 
 cd server && pnpm typecheck   # tsc --noEmit
 cd web    && pnpm typecheck   # vue-tsc --noEmit
@@ -429,8 +454,8 @@ cd server && pnpm build       # tsc -p tsconfig.build.json → server/dist
 cd web    && pnpm build       # vue-tsc + vite build → web/dist
 ```
 
-当前基线（2026-10-30 实测）：**server 134 passed · web 59 passed · 双 lint / 双 typecheck /
-双 build 全绿**。server 的 `dist` 已确认不含 `*.test.js`（`tsconfig.build.json` 排除
+当前基线（2026-10-30 实测，含审计日志子系统）：**server 193 passed · web 60 passed ·
+双 lint / 双 typecheck / 双 build 全绿**（审计用例仍在补充，数字以 `pnpm test` 为准）。server 的 `dist` 已确认不含 `*.test.js`（`tsconfig.build.json` 排除
 `src/**/*.test.ts` 与 `src/testing/**`；Dockerfile 里还有一条防回归断言）。
 
 **CI**：`.github/workflows/ci.yml` —— push / pull request 触发，Node 22 + pnpm 11，
@@ -438,8 +463,8 @@ cd web    && pnpm build       # vue-tsc + vite build → web/dist
 第二组矩阵跑 `lint`，**两个包都阻断**（web 的 lint 依赖已在本轮补进
 `web/package.json` 与 lockfile）。CI 尚未在 GitHub 上实际跑过（§13）。
 
-> 测试文件：server 9 个（config / accessLog / errorHandler / rateLimiter / channel / upload /
-> server / channelStore / ws-handler）；web 10 个（useQRCode / QRDisplay / ShareCodeInput /
+> 测试文件：server 11 个（config / accessLog / errorHandler / rateLimiter / channel / upload /
+> server / channelStore / ws-handler / auditLog / clientIp）；web 10 个（useQRCode / QRDisplay / ShareCodeInput /
 > useWebSocket / useLocale / i18n / locales 键集合 / utils scan / utils upload / utils ws）。
 
 ---
@@ -484,6 +509,7 @@ entrypoint.sh = node 后台 + caddy 后台 + trap TERM/INT 转发 + 监督循环
 Caddyfile = {$CADDY_SITE_ADDRESS::80} { /ws* → :41602, /api/* → :41601, 其余静态 }
 compose   = env_file(.env, 可选) + 变量默认值 + healthcheck + stop_grace_period: 20s
           + "${LIVE_QR_PORT:-41606}:80" + restart: unless-stopped
+          + 命名卷 live-qr-logs:/var/log/live-qr（审计日志）
 ```
 
 关键点：
@@ -492,8 +518,8 @@ compose   = env_file(.env, 可选) + 变量默认值 + healthcheck + stop_grace_
   41601/41602/41605 与 Docker 无关。
 - **TLS 默认在边缘终止**：容器内 Caddy 只监听 `:80`，证书/HTTPS 交给外层网关。
 - **容器内可选 HTTPS**（仅当没有外层网关时）：`.env` 设
-  `CADDY_SITE_ADDRESS=qr.example.com` → 打开 compose 里 `443:443` 与
-  `caddy-data` 卷的注释 → 确保 80/443 可达（ACME）→ 去掉前面的边缘代理。
+  `CADDY_SITE_ADDRESS=qr.example.com` → 打开 compose 里 `443:443` 的注释，并解开
+  `caddy-data` 挂载与顶级声明 → 确保 80/443 可达（ACME）→ 去掉前面的边缘代理。
   证书与 ACME 状态在 `/srv/caddy/data`，必须持久化。
 - **信号/监督**：`tini` 是 PID 1；`entrypoint.sh` 把 TERM/INT 转发给 node 与 caddy，
   最多等 10s 再 SIGKILL；任一子进程自行退出 → 容器 `exit 1`（配 `restart: unless-stopped`）。
@@ -507,6 +533,20 @@ compose   = env_file(.env, 可选) + 变量默认值 + healthcheck + stop_grace_
   `*.test.js` / `testing/`（`Dockerfile:23-29`）。
 - **`.env` 真正生效**：compose 的 `env_file`（长语法 `required:false`，需要
   Compose ≥2.24）+ 全部键的 `${VAR:-default}` 插值；不建 `.env` 也能起。
+- **审计日志卷（必须命名卷）**：compose 用 `live-qr-logs:/var/log/live-qr`。
+  **不要换成 bind mount**：容器以 uid 10001 运行，Docker 创建的宿主目录属于 root，
+  应用写不进去（EACCES）。镜像 runtime 已 `mkdir /var/log/live-qr`、`chown app`、
+  `chmod 700`，新建卷会继承该 owner/mode；若复用权限不对的旧卷，需手动
+  `chown -R 10001:10001 /var/log/live-qr` + `chmod 700`。
+- **卷生命周期与备份**：`docker compose down` 保留卷，`down -v` 删除；
+  宿主磁盘故障或误删即丢日志。备份/手动删除命令见 README「日志与留存」。
+- **容器内目录固定**：`AUDIT_LOG_DIR=/var/log/live-qr`（compose 的 environment 覆盖
+  `.env` 中的同名键）。要换路径必须同时改卷挂载，否则数据落在容器可写层、重建即丢。
+- **日志量**：每次上传一行且含 `text` 全文，高流量 + 长文本会快速占用磁盘；
+  监控卷容量，必要时调小 `AUDIT_LOG_RETENTION_DAYS` 或 `AUDIT_LOG_ENABLED=false`。
+- **审计降级不会阻止启动**：目录不可写/挂载错时，服务仍正常起（写失败只记
+  `audit_write_failed`）。部署验收要确认当天 `transfer-*.jsonl` 里出现 `audit_started`，
+  否则就是权限/路径没配好。
 - **Caddy 版本**：默认不钉死（跟随 `node:22-alpine` 的 Alpine 仓库），需要可复现构建时
   用 `--build-arg CADDY_VERSION=<apk version>`。
 - 旧 `CADDY_DOMAIN` / `CADDY_EMAIL` 已删除（从未被读取）。
@@ -641,8 +681,10 @@ curl -sS --noproxy '*' http://127.0.0.1:41605/src/components/ScannerView.vue | g
 | 3 | **纯内存存储**：进程重启丢全部通道 | 设计如此，不是缺陷 | 如需持久化，按仓库 DB 铁律（只做加法、幂等 migration、测试用独立库） |
 | 4 | **web 无浏览器 E2E**：只有 happy-dom 单测 | 摄像头、真机扫码、safe-area、iOS 字号等仍靠人工 | 需要时补 Playwright/真机清单；改动扫码/布局后按 §14.6 手测 |
 | 5 | ~~1001 语义分歧~~ **已修复**：关服改用 1012（Service Restart），前端对 1012 重连、对 1001 不重连 | 滚动重启后观看端可自愈（约 31s 退避窗口） | 已收敛；改关闭码时同步 `utils/ws.ts` 与单测 |
-| 6 | **日志保留/轮转不在代码内** | 合规留存时长依赖部署方（stdout → 容器/宿主日志） | 部署侧配置轮转与保留；法务要求 ≥6 个月时自行落实 |
+| 6 | **stdout 访问/业务日志的轮转不在代码内**（审计日志有应用内 243 天清理） | 容器/宿主日志可能无限增长 | 部署侧配置日志驱动轮转；审计日志用 `AUDIT_LOG_RETENTION_DAYS` 控制 |
 | 7 | **CN 合规的备案/实名/内容审核** | 不是代码能解决的 | 运营方义务；写入 README 免责声明（见 §16） |
+| 8 | **审计日志卷是单点**：容器重建不丢（命名卷），但 `down -v`、宿主磁盘故障或误删会丢；卷内含**明文文本** | 丢失即无法满足留存义务；泄露即内容泄露 | 定期备份命名卷；限制宿主 root / docker 组访问；按法域设置保留期 |
+| 9 | **审计日志目录不可写时服务仍会启动**（审计降级，仅 stderr 记 `audit_write_failed`） | 表面健康但审计缺失，可能造成合规留存缺口 | 部署后检查 `audit_started` 记录/卷权限；监控 `audit_write_failed` |
 
 ### 13.2 本轮已修复（旧文档/审计里的条目；修复版本 = 2026-10-30 工作区，尚未提交）
 
@@ -667,7 +709,7 @@ curl -sS --noproxy '*' http://127.0.0.1:41605/src/components/ScannerView.vue | g
    不要只信 `devctl status`（§12.3）；没起来就 `devctl start live-qr api` → `web`。
 2. **确认工作区状态**：`git -C /home/dynesshely/projects/Dynesshely/Live-QR status -sb`。
    本轮改动提交前会显示大量修改；**不要** checkout/丢弃别人的改动。基线提交是 `1861144`。
-3. **跑基线**：`cd server && pnpm test`（134）+ `cd web && pnpm test`（59），
+3. **跑基线**：`cd server && pnpm test`（当前 193，审计用例仍在增加）+ `cd web && pnpm test`（60），
    再跑双 typecheck / 双 lint；改了构建相关再补 `pnpm build`。
 4. **动代码前先读** §12（尤其 12.1 store、12.2 pnpm store、12.8 WS Host/Origin）。
 5. **加依赖前先读 12.2**；不要 `pnpm install` / `--force`。新增依赖要同步 lockfile 与 CI。
@@ -731,18 +773,40 @@ curl -sS --noproxy '*' http://127.0.0.1:41605/src/components/ScannerView.vue | g
 > 当前 `index.html` **没有任何第三方脚本/统计/Cookie**；如果将来接入统计、广告或外部字体，
 > 必须先更新 `legal/content.ts` 的隐私段落，否则文案与事实不符。
 
-### 16.4 访问日志的边界
+### 16.4 日志的边界：访问日志（不含文本） vs 审计日志（含明文）
 
-服务端日志（stdout，一行一个 JSON，参数见 `types.ts:128-141`）：
+**访问日志 / 业务事件**（stdout，一行一个 JSON，参数见 `types.ts:128-141`）：
 
 - **请求元数据**：`method / path / status / durationMs / clientIp / userAgent`
   （UA 截断 200 字符），`/api/health` 不记（`accessLog.ts:11-29`、`logger.ts:58-72`）。
 - **业务事件**：通道创建/验证、上传成功、限流、WS 连接/断开、清理、错误等；
   只带 `event / timestamp / shareCode / clientIp / message`，上传事件额外只有**文本长度**，
-  **没有请求体、没有上传文本**（`routes/upload.ts:66`）。
-- 日志用于限流、排障、安全审计；保留时长与轮转由部署方设定，并可依法在合规程序下提供。
-- **改动边界**：任何新增的日志字段（尤其是 IP/UA/分享码之外的标识、或文本内容）都必须在
-  同一次改动里同步 `legal/content.ts` 的「日志」段落；否则就构成文案与实现不符。
+  **这套日志没有请求体、没有上传文本**（`routes/upload.ts:66`）。
+- 用途：限流、排障、安全审计；保留/轮转由部署方设定。
+
+**审计日志**（磁盘 JSONL，默认开启）：
+
+| 事件 | 字段 |
+| --- | --- |
+| `upload` | `ts, shareCode, uploaderIp, uploaderUa, text, textLength, recipients:[{ip, ua}]` |
+| `viewer_connect` | `ts, shareCode, ip, ua` |
+| `viewer_disconnect` | `ts, shareCode, ip, durationMs` |
+| `audit_started` | `ts, dir, retentionDays` |
+| `retention_purge` | `ts, cutoff, deleted[]` |
+
+- 文件：`<AUDIT_LOG_DIR>/transfer-YYYY-MM-DD.jsonl`，UTF-8、一行一个 JSON、追加写、
+  **UTC 日期**切分；目录 `0700`、文件 `0600`。
+- 保留：启动时 + 跨天滚动时删除早于「今天 − `AUDIT_LOG_RETENTION_DAYS`」的文件，
+  默认 **243 天（≈8 个月）**，范围 1–3650；`AUDIT_LOG_ENABLED=false` 可完全关闭。
+- **谁可以读**：容器内只有 uid 10001 写；宿主 root、docker 组、能挂载该卷/读宿主磁盘的人
+  都能读取明文。日志**不通过 HTTP API 暴露**；备份/快照同样按敏感数据处理。
+- 用途：满足留存与溯源义务；因此**它保存文本原文**，与访问日志的边界不同。
+
+> ✅ **文案已同步**：站内合规文案（`web/src/legal/content.ts`，中/英/日）已包含审计日志说明
+> （文本原文 + 双方 IP/UA、243 天、仅服务账号读写）。再改字段/保留期时必须继续同步该文件。
+
+- **改动边界**：新增/删除审计字段、改变保留期或目录，必须同一次改动里同步 README「日志与留存」、
+  本文 §2.5/§16.4/§16.5 与 `legal/content.ts`。
 
 ### 16.5 改服务端行为时的同步清单
 
@@ -753,4 +817,6 @@ curl -sS --noproxy '*' http://127.0.0.1:41605/src/components/ScannerView.vue | g
 | 新增/修改 API 错误码 | `web/src/utils/upload.ts` 的 `SERVER_ERROR_CODES` + 三份 `locales/*.json` + README 错误码 |
 | 改变 WS 关闭码语义 | `web/src/utils/ws.ts`、README/本文 §6.3 |
 | 新增浏览器存储键或接入第三方脚本 | `legal/content.ts`、§16.3 |
+| 审计日志字段/开关/保留期/目录 | README「日志与留存」、本文 §2.5/§16.4、`legal/content.ts` 隐私段 |
+| 审计日志卷或容器内路径 | `docker-compose.yml`、`Dockerfile`、README「日志与留存」、§11 |
 

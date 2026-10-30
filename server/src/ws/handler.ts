@@ -7,7 +7,9 @@ import {
   addClient,
   removeClient,
 } from '../services/channelStore.js';
-import { parseAllowedOrigins } from '../config.js';
+import { parseAllowedOrigins, parseTrustProxy } from '../config.js';
+import { ipFromNodeRequest, userAgentFromNodeRequest } from '../services/clientIp.js';
+import { tryRecord, type AuditRecorder } from '../services/auditLog.js';
 import { logger } from '../logger.js';
 
 /** Server → client heartbeat cadence. Two silent ticks (≈60s) kill the socket. */
@@ -143,10 +145,14 @@ export function attachWebSocketServer(wss: WebSocketServer, server: HttpServer):
 export interface WSServerDeps {
   /** Override WS_ALLOWED_ORIGINS (tests). */
   allowedOrigins?: string[];
+  /** On-disk audit trail (undefined when AUDIT_LOG_ENABLED=false). */
+  audit?: AuditRecorder;
 }
 
 export function createWSServer(config: AppConfig, deps: WSServerDeps = {}): WebSocketServer {
   const allowedOrigins = deps.allowedOrigins ?? parseAllowedOrigins(config.WS_ALLOWED_ORIGINS);
+  const trustProxy = parseTrustProxy(config.TRUST_PROXY);
+  const audit = deps.audit;
 
   // noServer: binding is the caller's job (createServers/start), which keeps
   // this module importable and testable without touching a port.
@@ -194,8 +200,17 @@ export function createWSServer(config: AppConfig, deps: WSServerDeps = {}): WebS
     ws.isAlive = true;
     ws.shareCode = shareCode;
 
+    // Identity comes from the handshake request (shared trust-proxy helper, so
+    // a viewer behind Caddy is recorded with their real IP, not 127.0.0.1).
+    const clientIp = ipFromNodeRequest(req, trustProxy);
+    const clientUa = userAgentFromNodeRequest(req);
+    const connectedAt = Date.now();
+
     // Register client (sends welcome + history and broadcasts viewer_count)
-    addClient(shareCode, ws);
+    addClient(shareCode, ws, { ip: clientIp, ua: clientUa });
+
+    // Compliance trail: this viewer is now a potential recipient.
+    tryRecord(() => audit?.recordViewerConnect({ shareCode, ip: clientIp, ua: clientUa }));
 
     ws.on('message', (data: Buffer) => {
       try {
@@ -226,6 +241,13 @@ export function createWSServer(config: AppConfig, deps: WSServerDeps = {}): WebS
     ws.on('close', () => {
       if (ws.shareCode) {
         removeClient(ws.shareCode, ws);
+        tryRecord(() =>
+          audit?.recordViewerDisconnect({
+            shareCode: ws.shareCode as string,
+            ip: clientIp,
+            durationMs: Date.now() - connectedAt,
+          }),
+        );
       }
       if (ws.heartbeatTimer) clearInterval(ws.heartbeatTimer);
     });

@@ -17,6 +17,8 @@
   &nbsp;·&nbsp;
   <a href="#docker-部署">Docker 部署</a>
   &nbsp;·&nbsp;
+  <a href="#日志与留存">日志与留存</a>
+  &nbsp;·&nbsp;
   <a href="#免责声明">免责声明</a>
   &nbsp;·&nbsp;
   <a href="LICENSE">许可证</a>
@@ -210,6 +212,9 @@ docker compose up -d --build
 - **非 root**：运行用户 uid 10001，通过 `setcap cap_net_bind_service` 获得绑定 80/443 的能力。
 - **构建产物不含测试**：server 阶段用 `tsconfig.build.json`（排除 `*.test.ts`）编译，
   镜像里不再出现 `*.test.js`。
+- **审计日志**：命名卷 `live-qr-logs` 挂到 `/var/log/live-qr`（目录 0700、文件 0600，
+  uid 10001 可写）。**不要改成 bind mount** —— 宿主目录会由 Docker 以 root 创建，非 root
+  容器写不进去。备份/删除与保留策略见[日志与留存](#日志与留存)。
 - **生产公网部署前须评估所在法域合规义务**（备案、日志留存、内容审核等），
   详见上方[免责声明](#免责声明)。
 
@@ -270,7 +275,9 @@ Live-QR/
 │       │   └── upload.ts          # POST /upload
 │       ├── services/
 │       │   ├── channelStore.ts    # 内存通道管理 + 广播 + 过期
-│       │   └── attemptStore.ts    # 限流窗口计数（可清理）
+│       │   ├── attemptStore.ts    # 限流窗口计数（可清理）
+│       │   ├── auditLog.ts        # 磁盘审计日志（JSONL / 保留清理）
+│       │   └── clientIp.ts        # HTTP/WS/审计共用的真实 IP 解析
 │       ├── ws/
 │       │   └── handler.ts         # WebSocket 服务器（握手校验 / 心跳）
 │       └── middleware/
@@ -340,8 +347,9 @@ Live-QR/
   非法 JSON 返回 400。带 body 的请求应使用 `Content-Type: application/json`。
 - 通道只存在于内存：进程重启即全部丢失；过期是**逻辑过期 + 惰性过期**，
   过期后对所有读接口表现为「不存在」，且不会被上传复活。
-- 每个请求记一行 JSON 访问日志（method / path / status / durationMs / ip / ua），
-  **不记录请求体与上传文本**；`/api/health` 不记日志。
+- 每个请求记一行 JSON **访问日志**（method / path / status / durationMs / ip / ua），
+  不含请求体；`/api/health` 不记日志。**审计日志是另一套子系统**，会保存上传文本原文
+  （默认开启），见[日志与留存](#日志与留存)。
 
 ### 接口总览
 
@@ -519,6 +527,59 @@ wss://<host>/ws?shareCode=12345678
 
 > `TOO_MANY_VIEWERS`（4002）**不是 HTTP 错误码**，它只出现在 WebSocket 关闭原因里。
 
+## 日志与留存
+
+服务端有**两套互不相同的日志**，混在一起会直接导致合规误判。
+
+### 访问与业务日志（stdout，不含文本）
+
+- 每个 HTTP 请求一行 JSON：`method / path / status / durationMs / clientIp / userAgent`；
+  `/api/health` 不记。
+- 业务事件（通道创建/验证、上传成功、限流、WS 连接/断开、清理、错误）只带
+  `event / timestamp / shareCode / clientIp / message`，上传事件额外只有文本长度。
+- **这套日志不含请求体与上传文本**；保留与轮转由部署方负责（容器日志驱动 / 宿主 logrotate）。
+
+### 审计日志（磁盘 JSONL，含明文文本）
+
+默认开启（`AUDIT_LOG_ENABLED=true`）。每次传输都会把**文本原文**、上传者 IP/UA、
+接收者 IP/UA 追加写入 `<AUDIT_LOG_DIR>/transfer-YYYY-MM-DD.jsonl`：
+
+| 事件 | 记录字段 |
+| --- | --- |
+| `upload` | `ts, shareCode, uploaderIp, uploaderUa, text, textLength, recipients:[{ip, ua}]`（recipients = 广播时在线的观看者） |
+| `viewer_connect` | `ts, shareCode, ip, ua` |
+| `viewer_disconnect` | `ts, shareCode, ip, durationMs` |
+| `audit_started` | `ts, dir, retentionDays` |
+| `retention_purge` | `ts, cutoff, deleted[]` |
+
+- 一行一个 JSON（UTF-8），追加写；按 **UTC 日期**切文件。
+- 目录 `0700`、文件 `0600`（由 server 创建）。默认目录 `logs`（相对 server 进程 cwd，
+  本地即 `server/logs/`）。
+- **自动删除**：启动时与每次跨天滚动时，删除日期早于「今天 − `AUDIT_LOG_RETENTION_DAYS`」的
+  `transfer-*.jsonl`。默认保留 **243 天（约 8 个月）**，可设 1–3650。
+- **容器内**：`/var/log/live-qr`，由 compose 挂**命名卷 `live-qr-logs`**。
+  不要改成 bind mount —— 容器以 uid 10001 运行，而 Docker 创建的宿主目录属于 root，
+  应用会因 EACCES 写不进去。`docker compose down` 不删卷，`down -v` 会删；
+  宿主磁盘故障或卷被人工删除都会丢日志。
+- 导出 / 手动删除：
+
+```bash
+# 备份到当前目录（经容器读取，无需知道卷的完整名字）
+docker compose exec -T qr-live tar czf - -C /var/log/live-qr . > live-qr-logs.tgz
+# 查看 / 手动删除某一天
+docker compose exec qr-live ls -l /var/log/live-qr
+docker compose exec qr-live rm /var/log/live-qr/transfer-YYYY-MM-DD.jsonl
+# 卷的实际名字带 compose 项目前缀，例如 live-qr_live-qr-logs
+docker volume ls | grep live-qr-logs
+```
+
+- 关闭：`AUDIT_LOG_ENABLED=false`（也接受 `0`）。本地开发可用 `AUDIT_LOG_DIR` 改目录。
+- **审计写入不会影响业务**：写入失败只记 `audit_write_failed`，上传/观看照常；目录不可写时
+  服务仍会启动（审计降级）。部署后应确认当天文件里有 `audit_started` 记录。
+- **隐私提示**：审计日志保存的是**明文上传内容**。能读宿主 root 或 docker 组的人即可读这些
+  文件；请限制宿主/卷权限，不要把卷放进不信任的备份或同步目录。修改日志行为时必须同步
+  站内隐私文案（`web/src/legal/content.ts`）。
+
 ## 环境变量
 
 Docker 部署：把 `.env.example` 复制到**仓库根**的 `.env`（compose 会自动读取并注入容器；
@@ -539,6 +600,9 @@ Docker 部署：把 `.env.example` 复制到**仓库根**的 `.env`（compose �
 | `MAX_TEXT_LENGTH`         | 2000       | 上传文本最大长度，按码点计（1–10000）                      |
 | `TRUST_PROXY`             | `loopback` | Express trust proxy；`false`/跳数/`loopback`/`linklocal`/CIDR |
 | `WS_ALLOWED_ORIGINS`      | （空）     | WS Origin 白名单，逗号分隔；空 = 同源校验                  |
+| `AUDIT_LOG_ENABLED`       | `true`     | 审计日志开关（true/false/1/0）；开启后落盘**明文文本**     |
+| `AUDIT_LOG_DIR`           | `logs`     | 审计日志目录；容器内固定 `/var/log/live-qr`（命名卷）      |
+| `AUDIT_LOG_RETENTION_DAYS`| 243        | 保留天数（1–3650，约 8 个月；按 UTC 日期切文件）           |
 | `CADDY_SITE_ADDRESS`      | `:80`      | 仅部署侧：Caddy 站点地址（域名则容器内自动 HTTPS）         |
 | `LIVE_QR_PORT`            | 41606      | 仅 compose：宿主机发布的 HTTP 端口                         |
 
@@ -583,7 +647,9 @@ Docker 部署：把 `.env.example` 复制到**仓库根**的 `.env`（compose �
 - **WebSocket 心跳** — 30s 间隔；连续 60s 无 pong 即断开；60s 无消息客户端重连
 - **协议校验** — 只接受 `/ws`，默认同源 Origin 校验，可配白名单
 - **统一错误映射** — 非法 JSON 400、超限 413、未知路径 JSON 404、5xx 兜底
-- **访问日志** — 每请求一行 JSON，不含请求体与用户文本（合规需要）
+- **访问日志** — 每请求一行 JSON（元数据），不含请求体与用户文本
+- **审计日志** — 可选落盘 JSONL：含文本原文、上传者/接收者 IP+UA，243 天自动清理，
+  目录 0700 / 文件 0600（见[日志与留存](#日志与留存)）
 - **优雅关闭** — SIGTERM/SIGINT 时并行关闭 WS + HTTP server，容器内由 tini 转发信号
 - **安全响应头** — `X-Content-Type-Options`, `X-Frame-Options`, `Strict-Transport-Security`
 - **静态压缩** — gzip + zstd

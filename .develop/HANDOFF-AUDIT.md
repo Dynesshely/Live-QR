@@ -7,6 +7,9 @@
 > 修复后基线（同日收口）：**server 134 passed / web 59 passed / 双 lint 双 typecheck 双 build 全绿**。
 >
 > **状态标记**：✅ 已修复 · ◐ 部分修复/已文档化 · ⛔ 未做（原因见 §0.2）。
+>
+> 注：审计日志子系统与合规文案合入后（2026-10-30 晚），门禁为 **server 193 / web 60**（审计用例仍在补充）；
+> 本文其余 134/59 是修复轮当时的快照。
 
 ---
 
@@ -138,7 +141,7 @@
 - 限流时间推进、TTL 语义 → ✅ `rateLimiter.test.ts`、`channelStore.test.ts`（假时钟）。
 - 测试自身缺陷：`rateLimiter.test.ts` 反向断言 → ✅；`verifyAttempts` 串味 → ✅
   （抽到 `attemptStore`，`shutdownAll`/测试可清）；`channelStore.test.ts` TTL=0 扫全表 → ✅ 假时钟。
-- 当前数字：**server 9 文件 / 134 用例；web 10 文件 / 59 用例**。
+- 修复轮数字：**server 9 文件 / 134 用例；web 10 文件 / 59 用例**（审计日志合入后为 11 文件 / 193+，见文首注）。
 
 ## 7. 建议的修复顺序（原计划）→ 执行结果
 

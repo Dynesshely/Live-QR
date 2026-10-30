@@ -5,6 +5,13 @@ export type { AppConfig } from './config.js';
 
 // ── Channel State ──
 
+/** Per-viewer metadata captured at the WS handshake (audit recipients). */
+export interface ViewerInfo {
+  ip: string;
+  ua: string;
+  connectedAt: number; // ms timestamp
+}
+
 export interface ChannelState {
   shareCode: string;
   latestText: string | null;
@@ -13,6 +20,8 @@ export interface ChannelState {
   ttlSeconds: number; // per-channel TTL, frozen at creation time
   uploadWindow: number[]; // timestamps in last 1s for sliding-window rate limit
   wsClients: Set<WebSocket>;
+  /** wsClients companion map: who is behind each socket (audit recipients). */
+  viewerInfo: Map<WebSocket, ViewerInfo>;
 }
 
 // ── API Responses ──
@@ -103,6 +112,59 @@ export interface PongMessage {
 
 export type ClientMessage = PongMessage;
 
+// ── Audit Log (on-disk JSONL, retained for AUDIT_LOG_RETENTION_DAYS) ──
+//
+// One JSON object per line in <AUDIT_LOG_DIR>/transfer-YYYY-MM-DD.jsonl
+// (UTC date). Field names are a shared three-party contract: do not rename.
+
+export interface AuditUploadRecord {
+  type: 'upload';
+  ts: string; // ISO 8601
+  shareCode: string;
+  uploaderIp: string;
+  uploaderUa: string;
+  text: string; // the exact text that was broadcast (no trim, no truncation)
+  textLength: number; // Unicode code points
+  recipients: Array<{ ip: string; ua: string }>; // viewers online at broadcast time
+}
+
+export interface AuditViewerConnectRecord {
+  type: 'viewer_connect';
+  ts: string;
+  shareCode: string;
+  ip: string;
+  ua: string;
+}
+
+export interface AuditViewerDisconnectRecord {
+  type: 'viewer_disconnect';
+  ts: string;
+  shareCode: string;
+  ip: string;
+  durationMs: number;
+}
+
+export interface AuditStartedRecord {
+  type: 'audit_started';
+  ts: string;
+  dir: string; // absolute directory the records are written to
+  retentionDays: number;
+}
+
+export interface AuditRetentionPurgeRecord {
+  type: 'retention_purge';
+  ts: string;
+  cutoff: string; // YYYY-MM-DD; files strictly older than this are deleted
+  deleted: string[]; // file names removed by this purge
+}
+
+export type AuditRecord =
+  | AuditUploadRecord
+  | AuditViewerConnectRecord
+  | AuditViewerDisconnectRecord
+  | AuditStartedRecord
+  | AuditRetentionPurgeRecord;
+
 // ── Logger ──
 
 export type LogEvent =
@@ -123,7 +185,9 @@ export type LogEvent =
   | 'server_shutdown'
   | 'server_error'
   | 'internal_error'
-  | 'access';
+  | 'access'
+  | 'audit_write_failed'
+  | 'audit_purge';
 
 export interface LogEntry {
   timestamp: string;

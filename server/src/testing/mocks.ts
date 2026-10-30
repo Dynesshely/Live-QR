@@ -16,6 +16,11 @@ export function mockConfig(overrides: Partial<AppConfig> = {}): AppConfig {
     MAX_TEXT_LENGTH: 2000,
     TRUST_PROXY: 'false',
     WS_ALLOWED_ORIGINS: '',
+    // Tests must never write the real audit directory; opt in explicitly with a
+    // temp dir (auditLog.test.ts / server.test.ts do that).
+    AUDIT_LOG_ENABLED: false,
+    AUDIT_LOG_DIR: 'logs',
+    AUDIT_LOG_RETENTION_DAYS: 243,
     ...overrides,
   };
 }
@@ -111,14 +116,18 @@ export interface MockRequest {
 }
 
 export function mockRequest(overrides: Partial<MockRequest> = {}): MockRequest {
+  // The shared IP resolver reads socket.remoteAddress, so keep it in sync with
+  // the convenience `ip` field unless the caller sets it explicitly.
+  const ip = overrides.ip ?? overrides.socket?.remoteAddress ?? '127.0.0.1';
+
   return {
     body: {},
     query: {},
-    ip: '127.0.0.1',
+    ip,
     method: 'POST',
     path: '/api/test',
     headers: {},
-    socket: { remoteAddress: '127.0.0.1' },
+    socket: { remoteAddress: ip },
     ...overrides,
   };
 }

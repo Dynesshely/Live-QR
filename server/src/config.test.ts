@@ -25,6 +25,9 @@ describe('appConfigSchema', () => {
       expect(result.data.MAX_TEXT_LENGTH).toBe(2000);
       expect(result.data.TRUST_PROXY).toBe('loopback');
       expect(result.data.WS_ALLOWED_ORIGINS).toBe('');
+      expect(result.data.AUDIT_LOG_ENABLED).toBe(true);
+      expect(result.data.AUDIT_LOG_DIR).toBe('logs');
+      expect(result.data.AUDIT_LOG_RETENTION_DAYS).toBe(243);
     }
   });
 
@@ -82,6 +85,46 @@ describe('appConfigSchema', () => {
   it('rejects an out-of-range CREATE_RATE_LIMIT', () => {
     expect(appConfigSchema.safeParse({ CREATE_RATE_LIMIT: '0' }).success).toBe(false);
     expect(appConfigSchema.safeParse({ CREATE_RATE_LIMIT: '5000' }).success).toBe(false);
+  });
+});
+
+describe('audit log config', () => {
+  it.each([
+    ['true', true],
+    ['TRUE', true],
+    ['1', true],
+    ['false', false],
+    ['False', false],
+    ['0', false],
+  ])('parses AUDIT_LOG_ENABLED=%s as %s', (value, expected) => {
+    const result = appConfigSchema.safeParse({ AUDIT_LOG_ENABLED: value });
+    expect(result.success).toBe(true);
+    if (result.success) expect(result.data.AUDIT_LOG_ENABLED).toBe(expected);
+  });
+
+  it('rejects an ambiguous AUDIT_LOG_ENABLED value', () => {
+    expect(appConfigSchema.safeParse({ AUDIT_LOG_ENABLED: 'yes' }).success).toBe(false);
+    expect(appConfigSchema.safeParse({ AUDIT_LOG_ENABLED: 'on' }).success).toBe(false);
+  });
+
+  it('accepts a custom directory and retention window', () => {
+    const result = appConfigSchema.safeParse({
+      AUDIT_LOG_ENABLED: 'false',
+      AUDIT_LOG_DIR: ' /var/log/live-qr ',
+      AUDIT_LOG_RETENTION_DAYS: '365',
+    });
+    expect(result.success).toBe(true);
+    if (result.success) {
+      expect(result.data.AUDIT_LOG_ENABLED).toBe(false);
+      expect(result.data.AUDIT_LOG_DIR).toBe('/var/log/live-qr');
+      expect(result.data.AUDIT_LOG_RETENTION_DAYS).toBe(365);
+    }
+  });
+
+  it('rejects an empty directory and out-of-range retention', () => {
+    expect(appConfigSchema.safeParse({ AUDIT_LOG_DIR: '   ' }).success).toBe(false);
+    expect(appConfigSchema.safeParse({ AUDIT_LOG_RETENTION_DAYS: '0' }).success).toBe(false);
+    expect(appConfigSchema.safeParse({ AUDIT_LOG_RETENTION_DAYS: '3651' }).success).toBe(false);
   });
 });
 

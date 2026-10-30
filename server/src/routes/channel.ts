@@ -3,7 +3,11 @@ import { createChannel, getChannel, expireChannel } from '../services/channelSto
 import { createCreateRateLimiter, createVerifyRateLimiter, clientIpOf } from '../middleware/rateLimiter.js';
 import { requireShareCodeInQuery, requireShareCodeInBody } from '../middleware/validate.js';
 import { createError } from '../middleware/errorHandler.js';
-import { CHANNEL_EXPIRE_SECONDS_MIN, CHANNEL_EXPIRE_SECONDS_MAX } from '../config.js';
+import {
+  CHANNEL_EXPIRE_SECONDS_MIN,
+  CHANNEL_EXPIRE_SECONDS_MAX,
+  parseTrustProxy,
+} from '../config.js';
 import type { AppConfig } from '../types.js';
 import { logger } from '../logger.js';
 
@@ -37,6 +41,7 @@ export function createChannelRouter(config: AppConfig): Router {
   const router = Router();
   const createRateLimiter = createCreateRateLimiter(config);
   const verifyRateLimiter = createVerifyRateLimiter(config);
+  const trustProxy = parseTrustProxy(config.TRUST_PROXY);
 
   // POST /api/channel/create
   router.post('/api/channel/create', createRateLimiter, (req: Request, res: Response) => {
@@ -76,7 +81,7 @@ export function createChannelRouter(config: AppConfig): Router {
         throw createError(404, 'CHANNEL_NOT_FOUND', '分享码不存在或已过期');
       }
 
-      logger.info('channel_verified', 'Channel verified', shareCode, clientIpOf(req));
+      logger.info('channel_verified', 'Channel verified', shareCode, clientIpOf(req, trustProxy));
 
       res.status(200).json({
         code: 200,

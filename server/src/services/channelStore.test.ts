@@ -5,6 +5,7 @@ import {
   channelExists,
   updateText,
   getViewerCount,
+  getViewerInfos,
   addClient,
   removeClient,
   startCleanupTimer,
@@ -79,6 +80,7 @@ describe('channelStore', () => {
       expect(stored.latestText).toBeNull();
       expect(stored.uploadWindow).toEqual([]);
       expect(stored.wsClients.size).toBe(0);
+      expect(stored.viewerInfo.size).toBe(0);
       expect('uploadCount' in stored).toBe(false);
     });
   });
@@ -243,6 +245,69 @@ describe('channelStore', () => {
       const ws = new FakeWebSocket();
       expect(addClient('00000000', FakeWebSocket.asWS(ws))).toBe(0);
       expect(ws.sent).toEqual([]);
+    });
+  });
+
+  describe('viewer info (audit recipients)', () => {
+    it('captures ip/ua/connectedAt at connection time', () => {
+      const ch = createChannel(config);
+      const ws = new FakeWebSocket();
+
+      addClient(ch.shareCode, FakeWebSocket.asWS(ws), {
+        ip: '203.0.113.7',
+        ua: 'viewer-agent',
+      });
+
+      expect(getViewerInfos(ch.shareCode)).toEqual([
+        { ip: '203.0.113.7', ua: 'viewer-agent', connectedAt: T0.getTime() },
+      ]);
+    });
+
+    it('returns a snapshot (mutating it does not touch the store)', () => {
+      const ch = createChannel(config);
+      addClient(ch.shareCode, FakeWebSocket.asWS(new FakeWebSocket()), { ip: 'a', ua: 'b' });
+
+      const snapshot = getViewerInfos(ch.shareCode);
+      snapshot[0].ip = 'mutated';
+
+      expect(getViewerInfos(ch.shareCode)[0].ip).toBe('a');
+    });
+
+    it('removes the entry when the viewer leaves', () => {
+      const ch = createChannel(config);
+      const ws = new FakeWebSocket();
+      addClient(ch.shareCode, FakeWebSocket.asWS(ws), { ip: '203.0.113.7', ua: 'ua' });
+
+      removeClient(ch.shareCode, FakeWebSocket.asWS(ws));
+
+      expect(getViewerInfos(ch.shareCode)).toEqual([]);
+    });
+
+    it('drops viewer info when the channel expires', () => {
+      const ch = createChannel(config, 60);
+      addClient(ch.shareCode, FakeWebSocket.asWS(new FakeWebSocket()), { ip: 'a', ua: 'b' });
+
+      vi.advanceTimersByTime(60_000);
+
+      expect(getViewerInfos(ch.shareCode)).toEqual([]);
+    });
+
+    it('drops viewer info on shutdown', () => {
+      const ch = createChannel(config);
+      addClient(ch.shareCode, FakeWebSocket.asWS(new FakeWebSocket()), { ip: 'a', ua: 'b' });
+
+      shutdownAll();
+
+      expect(getViewerInfos(ch.shareCode)).toEqual([]);
+    });
+
+    it('keeps working when no metadata is supplied (internal callers)', () => {
+      const ch = createChannel(config);
+      addClient(ch.shareCode, FakeWebSocket.asWS(new FakeWebSocket()));
+
+      expect(getViewerInfos(ch.shareCode)).toEqual([
+        { ip: '', ua: '', connectedAt: T0.getTime() },
+      ]);
     });
   });
 

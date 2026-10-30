@@ -19,6 +19,10 @@ pnpm-debug.log*
 *.swo
 *~
 
+# ── Audit logs (local dev; containers use the live-qr-logs named volume) ──
+logs/
+server/logs/
+
 # ── OS generated ──
 .DS_Store
 .DS_Store?

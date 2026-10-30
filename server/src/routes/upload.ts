@@ -1,8 +1,11 @@
 import { Router, type Request, type Response, type NextFunction } from 'express';
-import { updateText } from '../services/channelStore.js';
-import { createUploadRateLimiter } from '../middleware/rateLimiter.js';
+import { getViewerInfos, updateText } from '../services/channelStore.js';
+import { createUploadRateLimiter, clientIpOf } from '../middleware/rateLimiter.js';
 import { requireShareCodeInBody } from '../middleware/validate.js';
 import { createError } from '../middleware/errorHandler.js';
+import { parseTrustProxy } from '../config.js';
+import { userAgentFromNodeRequest } from '../services/clientIp.js';
+import { tryRecord, type AuditRecorder } from '../services/auditLog.js';
 import type { AppConfig } from '../types.js';
 import { logger } from '../logger.js';
 
@@ -42,9 +45,10 @@ function validateUploadText(config: AppConfig) {
   };
 }
 
-export function createUploadRouter(config: AppConfig): Router {
+export function createUploadRouter(config: AppConfig, audit?: AuditRecorder): Router {
   const router = Router();
   const uploadRateLimiter = createUploadRateLimiter(config);
+  const trustProxy = parseTrustProxy(config.TRUST_PROXY);
 
   // POST /api/upload
   router.post(
@@ -52,16 +56,35 @@ export function createUploadRouter(config: AppConfig): Router {
     requireShareCodeInBody,
     validateUploadText(config),
     uploadRateLimiter,
-    (_req: Request, res: Response) => {
+    (req: Request, res: Response) => {
       const shareCode = res.locals.shareCode as string;
       const text = res.locals.text as string;
       const length = res.locals.textLength as number;
+
+      // Snapshot the viewers *at broadcast time*: anyone who joins after this
+      // upload did not receive it and must not appear as a recipient.
+      const recipients = getViewerInfos(shareCode).map((viewer) => ({
+        ip: viewer.ip,
+        ua: viewer.ua,
+      }));
 
       // updateText() also refuses expired channels: an upload cannot revive one.
       if (!updateText(shareCode, text)) {
         logger.info('upload_channel_not_found', 'Upload to non-existent channel', shareCode);
         throw createError(404, 'CHANNEL_NOT_FOUND', '分享码不存在或已过期');
       }
+
+      // Compliance trail: who uploaded what, and who received it. Audit writes
+      // are fire-and-forget and can never fail this request.
+      tryRecord(() =>
+        audit?.recordUpload({
+          shareCode,
+          uploaderIp: clientIpOf(req, trustProxy),
+          uploaderUa: userAgentFromNodeRequest(req),
+          text,
+          recipients,
+        }),
+      );
 
       logger.info('upload_success', 'Text uploaded (' + length + ' chars)', shareCode);
 

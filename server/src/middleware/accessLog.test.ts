@@ -1,7 +1,7 @@
 import { describe, it, expect, afterEach, vi } from 'vitest';
 import type { NextFunction, Request, Response } from 'express';
-import { accessLog } from './accessLog.js';
-import { mockRequest, mockResponse } from '../testing/mocks.js';
+import { createAccessLog } from './accessLog.js';
+import { mockConfig, mockRequest, mockResponse } from '../testing/mocks.js';
 
 function captureStdout(): { lines: string[]; restore: () => void } {
   const lines: string[] = [];
@@ -34,7 +34,7 @@ describe('accessLog', () => {
     const res = mockResponse();
     let nextCalled = false;
 
-    accessLog(
+    createAccessLog(mockConfig())(
       req as unknown as Request,
       res as unknown as Response,
       (() => {
@@ -73,7 +73,7 @@ describe('accessLog', () => {
     const res = mockResponse();
     let nextCalled = false;
 
-    accessLog(
+    createAccessLog(mockConfig())(
       req as unknown as Request,
       res as unknown as Response,
       (() => {

@@ -1,6 +1,6 @@
 import { randomInt } from 'node:crypto';
 import { WebSocket } from 'ws';
-import type { ChannelState, ServerMessage, AppConfig } from '../types.js';
+import type { ChannelState, ServerMessage, AppConfig, ViewerInfo } from '../types.js';
 import { logger } from '../logger.js';
 import { clearAttempts, pruneAttempts } from './attemptStore.js';
 
@@ -66,6 +66,7 @@ function dropChannel(channel: ChannelState, closeReason: string): void {
     ws.close(1001, closeReason);
   }
   channel.wsClients.clear();
+  channel.viewerInfo.clear();
   channels.delete(channel.shareCode);
 }
 
@@ -115,6 +116,7 @@ export function createChannel(config: AppConfig, expireSeconds?: number): {
     ttlSeconds,
     uploadWindow: [],
     wsClients: new Set(),
+    viewerInfo: new Map(),
   };
 
   channels.set(shareCode, state);
@@ -159,11 +161,32 @@ export function getViewerCount(shareCode: string): number {
   return channel ? channel.wsClients.size : 0;
 }
 
-export function addClient(shareCode: string, ws: WebSocket): number {
+/** Viewer identity captured at the WS handshake (audit recipients). */
+export interface ViewerMeta {
+  ip: string;
+  ua: string;
+}
+
+/**
+ * Snapshot of the viewers currently registered on a channel. Used to record
+ * who received a broadcast; viewers connecting afterwards are not included.
+ */
+export function getViewerInfos(shareCode: string): ViewerInfo[] {
+  const channel = getLiveChannel(shareCode);
+  if (!channel) return [];
+  return [...channel.viewerInfo.values()].map((viewer) => ({ ...viewer }));
+}
+
+export function addClient(shareCode: string, ws: WebSocket, meta?: ViewerMeta): number {
   const channel = getLiveChannel(shareCode);
   if (!channel) return 0;
 
   channel.wsClients.add(ws);
+  channel.viewerInfo.set(ws, {
+    ip: meta?.ip ?? '',
+    ua: meta?.ua ?? '',
+    connectedAt: now(),
+  });
   const count = channel.wsClients.size;
 
   // Send welcome
@@ -194,6 +217,7 @@ export function removeClient(shareCode: string, ws: WebSocket): void {
   if (!channel) return;
 
   if (!channel.wsClients.delete(ws)) return;
+  channel.viewerInfo.delete(ws);
 
   const count = channel.wsClients.size;
   logger.info('ws_disconnected', `Client disconnected, viewers=${count}`, shareCode);
@@ -266,6 +290,7 @@ export function shutdownAll(): void {
       ws.close(1012, 'Server restart');
     }
     channel.wsClients.clear();
+    channel.viewerInfo.clear();
   }
   channels.clear();
   clearAttempts();

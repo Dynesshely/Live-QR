@@ -1,14 +1,19 @@
 import type { Request, Response, NextFunction } from 'express';
 import { getChannel } from '../services/channelStore.js';
 import { logger } from '../logger.js';
+import { parseTrustProxy } from '../config.js';
 import type { AppConfig } from '../types.js';
 import { consumeAttempt } from '../services/attemptStore.js';
+import { ipFromNodeRequest, type TrustProxySetting } from '../services/clientIp.js';
 
 const UPLOAD_WINDOW_MS = 1000;
 
-/** Extract the peer IP the limiters key on (never trusted blindly: see TRUST_PROXY). */
-export function clientIpOf(req: Request): string {
-  return req.ip || req.socket.remoteAddress || 'unknown';
+/**
+ * The client IP the limiters key on. Resolved by the shared trust-proxy helper
+ * so HTTP, WS and the audit trail all agree on who the client is.
+ */
+export function clientIpOf(req: Request, trustProxy: TrustProxySetting): string {
+  return ipFromNodeRequest(req, trustProxy);
 }
 
 // ── Upload rate limiter (per shareCode, sliding window) ──
@@ -59,8 +64,10 @@ export function createUploadRateLimiter(config: AppConfig) {
  * consume the per-IP quota.
  */
 export function createVerifyRateLimiter(config: AppConfig) {
+  const trustProxy = parseTrustProxy(config.TRUST_PROXY);
+
   return function verifyRateLimiter(req: Request, res: Response, next: NextFunction): void {
-    const ip = clientIpOf(req);
+    const ip = clientIpOf(req, trustProxy);
 
     if (!consumeAttempt('verify:' + ip, config.VERIFY_RATE_LIMIT)) {
       logger.warn('verify_rate_limited', 'Verify rate limit exceeded', undefined, ip);
@@ -80,8 +87,10 @@ export function createVerifyRateLimiter(config: AppConfig) {
 
 /** Channel creation is cheap for us but grows an in-memory map: cap it. */
 export function createCreateRateLimiter(config: AppConfig) {
+  const trustProxy = parseTrustProxy(config.TRUST_PROXY);
+
   return function createRateLimiter(req: Request, res: Response, next: NextFunction): void {
-    const ip = clientIpOf(req);
+    const ip = clientIpOf(req, trustProxy);
 
     if (!consumeAttempt('create:' + ip, config.CREATE_RATE_LIMIT)) {
       logger.warn('create_rate_limited', 'Create rate limit exceeded', undefined, ip);

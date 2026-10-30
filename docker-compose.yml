@@ -24,6 +24,13 @@ services:
       TRUST_PROXY: ${TRUST_PROXY:-loopback}
       CREATE_RATE_LIMIT: ${CREATE_RATE_LIMIT:-10}
       WS_ALLOWED_ORIGINS: ${WS_ALLOWED_ORIGINS:-}
+      # ── Audit log (contains PLAINTEXT uploads + IP/UA) ──────────────────
+      # On by default; set false for a strictly metadata-only deployment.
+      AUDIT_LOG_ENABLED: ${AUDIT_LOG_ENABLED:-true}
+      # Fixed to the named-volume mount point. Do not point this at "logs":
+      # that would write inside the container and disappear on rebuild.
+      AUDIT_LOG_DIR: /var/log/live-qr
+      AUDIT_LOG_RETENTION_DAYS: ${AUDIT_LOG_RETENTION_DAYS:-243}
       # Default: TLS terminated at the edge, container speaks plain HTTP on :80.
       CADDY_SITE_ADDRESS: ${CADDY_SITE_ADDRESS:-:80}
     ports:
@@ -32,7 +39,7 @@ services:
       # ── Optional in-container TLS ─────────────────────────────────────────
       # 1. set CADDY_SITE_ADDRESS=qr.example.com in .env
       # 2. publish 443 by uncommenting the mapping below
-      # 3. persist certificates: uncomment the volumes (bottom of this file)
+      # 3. persist certificates: uncomment caddy-data below + its top-level entry
       # 4. make sure nothing else terminates TLS in front of this container
       #    (the edge proxy must be removed for the ACME challenge to arrive)
       # - "443:443"
@@ -48,9 +55,30 @@ services:
     # docker stop sends SIGTERM; entrypoint.sh gives node + caddy 10s to exit.
     stop_grace_period: 20s
     restart: unless-stopped
-    # volumes:
-    #   - caddy-data:/srv/caddy/data
+    volumes:
+      # Audit log JSONL (one file per UTC day, 0600, dir 0700). It records the
+      # plaintext of every uploaded text plus uploader/recipient IP + UA, so
+      # treat the host and this volume as sensitive.
+      #
+      # MUST be a named volume, not a bind mount: the container runs as uid
+      # 10001, while Docker creates a bind-mount host directory as root:root,
+      # so the app cannot write (EACCES). The volume survives container
+      # re-create and image rebuilds; `docker compose down -v` deletes it.
+      #
+      # Retention is in-app (AUDIT_LOG_RETENTION_DAYS, default 243 days);
+      # size still grows with traffic — monitor the volume.
+      # Back up (reads through the container; the volume's real name is
+      # prefixed by the compose project, e.g. live-qr_live-qr-logs):
+      #   docker compose exec -T qr-live tar czf - -C /var/log/live-qr . \
+      #     > live-qr-logs.tgz
+      # List / delete manually:
+      #   docker compose exec qr-live ls -l /var/log/live-qr
+      #   docker compose exec qr-live rm /var/log/live-qr/transfer-2026-01-01.jsonl
+      - live-qr-logs:/var/log/live-qr
+      # Optional in-container TLS (see above): persist ACME state, otherwise
+      # every rebuild re-issues a certificate.
+      # - caddy-data:/srv/caddy/data
 
-# Named volume used only when in-container TLS is enabled (see above).
-# volumes:
-#   caddy-data:
+volumes:
+  live-qr-logs:
+  # caddy-data:

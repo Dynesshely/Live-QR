@@ -60,13 +60,19 @@ RUN chmod +x /entrypoint.sh
 
 # Unprivileged runtime user (uid 10001). /srv/caddy holds Caddy's data/config
 # dirs (needed only when in-container TLS is enabled) and is writable by it.
+# /var/log/live-qr is the audit-log directory: owned by the runtime user, mode
+# 0700 (the writer creates files with 0600). docker-compose mounts a *named
+# volume* here — a bind-mounted host dir is created root:root and the app
+# cannot write it. Volume initialisation copies this dir's owner/mode.
 RUN adduser -D -h /srv/caddy -u 10001 app \
-    && mkdir -p /srv/caddy/data /srv/caddy/config \
-    && chown -R app:app /srv
+    && mkdir -p /srv/caddy/data /srv/caddy/config /var/log/live-qr \
+    && chown -R app:app /srv /var/log/live-qr \
+    && chmod 700 /var/log/live-qr
 
 ENV XDG_DATA_HOME=/srv/caddy/data \
     XDG_CONFIG_HOME=/srv/caddy/config \
-    HOME=/srv/caddy
+    HOME=/srv/caddy \
+    AUDIT_LOG_DIR=/var/log/live-qr
 
 EXPOSE 80 443
 STOPSIGNAL SIGTERM

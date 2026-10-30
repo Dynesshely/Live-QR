@@ -27,6 +27,13 @@ function isValidTrustProxy(value: string): boolean {
     .every((token) => TRUST_PROXY_TOKEN.test(token));
 }
 
+const booleanFromEnv = (def: string) =>
+  z.string()
+    .default(def)
+    .transform((value) => value.trim().toLowerCase())
+    .pipe(z.enum(['true', 'false', '1', '0']))
+    .transform((value) => value === 'true' || value === '1');
+
 export const appConfigSchema = z.object({
   PORT_HTTP:                numberFromEnv('41601', 1, 65535),
   PORT_WS:                  numberFromEnv('41602', 1, 65535),
@@ -45,6 +52,17 @@ export const appConfigSchema = z.object({
   // Comma-separated Origin allow-list for the WebSocket handshake.
   // Empty (default) means same-origin only.
   WS_ALLOWED_ORIGINS:       z.string().default(''),
+  // ── Audit log (on-disk JSONL, compliance) ──
+  // Default ON: compliance requires the records; disabling is an explicit act.
+  AUDIT_LOG_ENABLED:        booleanFromEnv('true'),
+  // Relative paths resolve against the server process cwd (container: /var/log/live-qr).
+  AUDIT_LOG_DIR:            z
+    .string()
+    .default('logs')
+    .transform((value) => value.trim())
+    .refine((value) => value.length > 0, { message: 'must not be empty' }),
+  // 8 months ≈ 243 days.
+  AUDIT_LOG_RETENTION_DAYS: numberFromEnv('243', 1, 3650),
 });
 
 export type AppConfig = z.infer<typeof appConfigSchema>;

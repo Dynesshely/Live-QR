@@ -5,6 +5,7 @@ import type { AppConfig } from './types.js';
 import { createApp } from './app.js';
 import { attachWebSocketServer, createWSServer } from './ws/handler.js';
 import { startCleanupTimer, stopCleanupTimer, shutdownAll } from './services/channelStore.js';
+import { createAuditLog, type AuditLog } from './services/auditLog.js';
 import { loadConfig } from './config.js';
 import { logger } from './logger.js';
 
@@ -30,6 +31,8 @@ export interface LiveQRServers {
   readonly httpServer: HttpServer;
   readonly wsHttpServer: HttpServer;
   readonly wss: WebSocketServer;
+  /** On-disk audit trail; undefined when AUDIT_LOG_ENABLED=false. */
+  readonly audit?: AuditLog;
   start(): Promise<OpenedPorts>;
   close(): Promise<void>;
 }
@@ -98,10 +101,18 @@ function closeWSServer(wss: WebSocketServer): Promise<void> {
 export function createServers(config: AppConfig, deps: ServerDeps = {}): LiveQRServers {
   const onFatal = deps.onFatal ?? defaultOnFatal;
 
-  const app = createApp(config);
+  // Disabled means fully disabled: no directory, no writes, no timers.
+  const audit = config.AUDIT_LOG_ENABLED
+    ? createAuditLog({
+        dir: config.AUDIT_LOG_DIR,
+        retentionDays: config.AUDIT_LOG_RETENTION_DAYS,
+      })
+    : undefined;
+
+  const app = createApp(config, { audit });
   const httpServer = createServer(app);
   const wsHttpServer = createServer();
-  const wss = createWSServer(config);
+  const wss = createWSServer(config, { audit });
 
   attachWebSocketServer(wss, wsHttpServer);
 
@@ -115,6 +126,11 @@ export function createServers(config: AppConfig, deps: ServerDeps = {}): LiveQRS
   async function start(): Promise<OpenedPorts> {
     if (started) throw new Error('servers already started');
     started = true;
+
+    // Directory + audit_started + one retention purge, before the first
+    // request can be served. init() never throws (an unwritable dir only
+    // degrades auditing).
+    await audit?.init();
 
     const httpPort = await listen(httpServer, config.PORT_HTTP);
     const wsPort = await listen(wsHttpServer, config.PORT_WS);
@@ -141,10 +157,14 @@ export function createServers(config: AppConfig, deps: ServerDeps = {}): LiveQRS
       closeHttpServer(httpServer),
     ]);
 
+    // Flush only after every socket is gone, so the viewer_disconnect records
+    // of the closing clients are already queued.
+    await audit?.close();
+
     logger.info('server_shutdown', 'All servers closed');
   }
 
-  return { config, app, httpServer, wsHttpServer, wss, start, close };
+  return { config, app, httpServer, wsHttpServer, wss, audit, start, close };
 }
 
 export interface StartedServer extends LiveQRServers {
