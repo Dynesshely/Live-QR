@@ -1,4 +1,4 @@
-import { describe, it, expect, beforeEach, vi } from 'vitest';
+import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import {
   createChannel,
   getChannel,
@@ -9,40 +9,32 @@ import {
   removeClient,
   startCleanupTimer,
   stopCleanupTimer,
+  expireChannel,
   shutdownAll,
 } from './channelStore.js';
+import { clearAttempts, consumeAttempt, getAttemptKeys } from './attemptStore.js';
 import type { AppConfig } from '../config.js';
+import { FakeWebSocket, mockConfig } from '../testing/mocks.js';
 
-function mockConfig(overrides: Partial<AppConfig> = {}): AppConfig {
-  return {
-    PORT_HTTP: 41601,
-    PORT_WS: 41602,
-    CHANNEL_TTL_SECONDS: 1800,
-    CLEANUP_INTERVAL_SECONDS: 60,
-    UPLOAD_RATE_LIMIT: 2,
-    MAX_VIEWERS_PER_CHANNEL: 50,
-    VERIFY_RATE_LIMIT: 10,
-    MAX_TEXT_LENGTH: 2000,
-    ...overrides,
-  };
-}
-
-function mockWS(): any {
-  return {
-    readyState: 1, // WebSocket.OPEN
-    send: vi.fn(),
-    close: vi.fn(),
-    terminate: vi.fn(),
-    on: vi.fn(),
-  };
-}
+const T0 = new Date('2026-01-01T00:00:00.000Z');
 
 describe('channelStore', () => {
   let config: AppConfig;
 
   beforeEach(() => {
-    config = mockConfig();
+    vi.useFakeTimers();
+    vi.setSystemTime(T0);
     stopCleanupTimer();
+    clearAttempts();
+    shutdownAll();
+    config = mockConfig();
+  });
+
+  afterEach(() => {
+    stopCleanupTimer();
+    shutdownAll();
+    clearAttempts();
+    vi.useRealTimers();
   });
 
   describe('createChannel', () => {
@@ -57,6 +49,18 @@ describe('channelStore', () => {
       expect(ch.createdAt).toMatch(/^\d{4}-\d{2}-\d{2}T/);
     });
 
+    it('derives expireAt from the global TTL by default', () => {
+      const ch = createChannel(config);
+      expect(new Date(ch.expireAt).getTime() - new Date(ch.createdAt).getTime()).toBe(1800 * 1000);
+      expect(getChannel(ch.shareCode)!.ttlSeconds).toBe(1800);
+    });
+
+    it('honours a per-channel expire_seconds instead of the global TTL', () => {
+      const ch = createChannel(config, 60);
+      expect(new Date(ch.expireAt).getTime() - new Date(ch.createdAt).getTime()).toBe(60 * 1000);
+      expect(getChannel(ch.shareCode)!.ttlSeconds).toBe(60);
+    });
+
     it('stores the channel in memory so getChannel can retrieve it', () => {
       const ch = createChannel(config);
       const stored = getChannel(ch.shareCode);
@@ -69,13 +73,13 @@ describe('channelStore', () => {
       expect(codes.size).toBe(20);
     });
 
-    it('initializes channel state correctly', () => {
+    it('initializes channel state correctly (no dead uploadCount field)', () => {
       const ch = createChannel(config);
       const stored = getChannel(ch.shareCode)!;
       expect(stored.latestText).toBeNull();
-      expect(stored.uploadCount).toBe(0);
       expect(stored.uploadWindow).toEqual([]);
       expect(stored.wsClients.size).toBe(0);
+      expect('uploadCount' in stored).toBe(false);
     });
   });
 
@@ -90,116 +94,220 @@ describe('channelStore', () => {
     });
   });
 
+  describe('per-channel TTL and lazy expiry', () => {
+    it('expires exactly ttlSeconds after the last activity', () => {
+      const ch = createChannel(config, 60);
+
+      vi.advanceTimersByTime(59_999);
+      expect(getChannel(ch.shareCode)).toBeDefined();
+
+      vi.advanceTimersByTime(1);
+      // Expiry is lazy: the channel is gone on read even before the sweeper runs.
+      expect(getChannel(ch.shareCode)).toBeUndefined();
+      expect(channelExists(ch.shareCode)).toBe(false);
+    });
+
+    it('does not let a global TTL override a shorter per-channel TTL', () => {
+      const shortLived = createChannel(config, 60);
+      const longLived = createChannel(config, 3600);
+
+      vi.advanceTimersByTime(61_000);
+
+      expect(getChannel(shortLived.shareCode)).toBeUndefined();
+      expect(getChannel(longLived.shareCode)).toBeDefined();
+    });
+
+    it('notifies and closes viewers when a channel expires lazily', () => {
+      const ch = createChannel(config, 60);
+      const ws = new FakeWebSocket();
+      addClient(ch.shareCode, FakeWebSocket.asWS(ws));
+
+      vi.advanceTimersByTime(60_000);
+      expect(getChannel(ch.shareCode)).toBeUndefined();
+
+      const expired = ws.messagesOfType('channel_expired');
+      expect(expired).toHaveLength(1);
+      expect(expired[0].code).toBe('CHANNEL_EXPIRED');
+      // No hardcoded TTL in the copy any more.
+      expect(String(expired[0].message)).not.toMatch(/\d/);
+      expect(ws.closeCalls).toEqual([{ code: 1001, reason: 'Channel expired' }]);
+    });
+
+    it('does not revive an expired channel through updateText', () => {
+      const ch = createChannel(config, 60);
+      vi.advanceTimersByTime(60_000);
+
+      expect(updateText(ch.shareCode, 'zombie')).toBe(false);
+      expect(getChannel(ch.shareCode)).toBeUndefined();
+    });
+  });
+
   describe('updateText', () => {
-    it('updates latestText and increments uploadCount', () => {
+    it('updates latestText and broadcasts a text message', () => {
       const ch = createChannel(config);
-      updateText(ch.shareCode, 'hello');
-      const stored = getChannel(ch.shareCode)!;
-      expect(stored.latestText).toBe('hello');
-      expect(stored.uploadCount).toBe(1);
+      const ws = new FakeWebSocket();
+      addClient(ch.shareCode, FakeWebSocket.asWS(ws));
+      ws.sent = [];
+
+      expect(updateText(ch.shareCode, 'hello')).toBe(true);
+
+      expect(getChannel(ch.shareCode)!.latestText).toBe('hello');
+      const textMessages = ws.messagesOfType('text');
+      expect(textMessages).toHaveLength(1);
+      expect(textMessages[0].data).toBe('hello');
     });
 
-    it('refreshes lastUploadAt', async () => {
-      const ch = createChannel(config);
-      const before = getChannel(ch.shareCode)!.lastUploadAt;
-      await new Promise((r) => setTimeout(r, 5));
-      updateText(ch.shareCode, 'hello');
-      const after = getChannel(ch.shareCode)!.lastUploadAt;
-      expect(after).toBeGreaterThan(before);
+    it('refreshes the TTL anchor on every upload', () => {
+      const ch = createChannel(config, 60);
+
+      vi.advanceTimersByTime(50_000);
+      updateText(ch.shareCode, 'keep-alive');
+
+      // 50s after the upload: still alive although 100s passed since creation.
+      vi.advanceTimersByTime(50_000);
+      expect(getChannel(ch.shareCode)).toBeDefined();
+
+      vi.advanceTimersByTime(10_000);
+      expect(getChannel(ch.shareCode)).toBeUndefined();
     });
 
-    it('broadcasts text message to connected clients', () => {
-      const ch = createChannel(config);
-      const ws = mockWS();
-      addClient(ch.shareCode, ws);
-      updateText(ch.shareCode, 'test');
-      expect(ws.send).toHaveBeenCalledWith(
-        expect.stringContaining('"type":"text"'),
-      );
-    });
-
-    it('gracefully handles non-existent channel', () => {
-      expect(() => updateText('00000000', 'noop')).not.toThrow();
+    it('returns false for a non-existent channel', () => {
+      expect(updateText('00000000', 'noop')).toBe(false);
     });
   });
 
   describe('addClient / removeClient / getViewerCount', () => {
-    it('addClient sends welcome and returns viewer count', () => {
+    it('addClient sends welcome and broadcasts viewer_count 1', () => {
       const ch = createChannel(config);
-      const ws = mockWS();
-      const count = addClient(ch.shareCode, ws);
+      const ws = new FakeWebSocket();
+
+      const count = addClient(ch.shareCode, FakeWebSocket.asWS(ws));
+
       expect(count).toBe(1);
       expect(getViewerCount(ch.shareCode)).toBe(1);
-      expect(ws.send).toHaveBeenCalledWith(
-        expect.stringContaining('"type":"welcome"'),
-      );
+      expect(ws.messagesOfType('welcome')).toEqual([
+        expect.objectContaining({ type: 'welcome', shareCode: ch.shareCode, viewerCount: 1 }),
+      ]);
+      expect(ws.messagesOfType('viewer_count')).toEqual([
+        expect.objectContaining({ type: 'viewer_count', count: 1 }),
+      ]);
+    });
+
+    it('broadcasts viewer_count to every viewer on join', () => {
+      const ch = createChannel(config);
+      const ws1 = new FakeWebSocket();
+      const ws2 = new FakeWebSocket();
+
+      addClient(ch.shareCode, FakeWebSocket.asWS(ws1));
+      addClient(ch.shareCode, FakeWebSocket.asWS(ws2));
+
+      expect(ws1.messagesOfType('viewer_count').at(-1)).toMatchObject({ count: 2 });
+      expect(ws2.messagesOfType('viewer_count').at(-1)).toMatchObject({ count: 2 });
+    });
+
+    it('broadcasts viewer_count on leave', () => {
+      const ch = createChannel(config);
+      const ws1 = new FakeWebSocket();
+      const ws2 = new FakeWebSocket();
+      addClient(ch.shareCode, FakeWebSocket.asWS(ws1));
+      addClient(ch.shareCode, FakeWebSocket.asWS(ws2));
+
+      removeClient(ch.shareCode, FakeWebSocket.asWS(ws1));
+
+      expect(getViewerCount(ch.shareCode)).toBe(1);
+      expect(ws2.messagesOfType('viewer_count').at(-1)).toMatchObject({ count: 1 });
+    });
+
+    it('removeClient is a no-op for an unknown client', () => {
+      const ch = createChannel(config);
+      const ws = new FakeWebSocket();
+      addClient(ch.shareCode, FakeWebSocket.asWS(ws));
+
+      removeClient(ch.shareCode, FakeWebSocket.asWS(new FakeWebSocket()));
+      expect(getViewerCount(ch.shareCode)).toBe(1);
     });
 
     it('sends history with latestText when available', () => {
       const ch = createChannel(config);
       updateText(ch.shareCode, 'existing text');
-      const ws = mockWS();
-      addClient(ch.shareCode, ws);
-      expect(ws.send).toHaveBeenCalledWith(
-        expect.stringContaining('"type":"history"'),
-      );
+      const ws = new FakeWebSocket();
+
+      addClient(ch.shareCode, FakeWebSocket.asWS(ws));
+
+      const history = ws.messagesOfType('history');
+      expect(history).toHaveLength(1);
+      expect((history[0].messages as Array<{ data: string }>)[0].data).toBe('existing text');
     });
 
-    it('removeClient decrements viewer count', () => {
-      const ch = createChannel(config);
-      const ws = mockWS();
-      addClient(ch.shareCode, ws);
-      removeClient(ch.shareCode, ws);
-      expect(getViewerCount(ch.shareCode)).toBe(0);
-    });
-
-    it('tracks multiple viewers', () => {
-      const ch = createChannel(config);
-      const ws1 = mockWS();
-      const ws2 = mockWS();
-      addClient(ch.shareCode, ws1);
-      addClient(ch.shareCode, ws2);
-      expect(getViewerCount(ch.shareCode)).toBe(2);
-      removeClient(ch.shareCode, ws1);
-      expect(getViewerCount(ch.shareCode)).toBe(1);
+    it('returns 0 and sends nothing for a non-existent channel', () => {
+      const ws = new FakeWebSocket();
+      expect(addClient('00000000', FakeWebSocket.asWS(ws))).toBe(0);
+      expect(ws.sent).toEqual([]);
     });
   });
 
-  describe('cleanup', () => {
-    it('removes expired channels', async () => {
-      stopCleanupTimer();
-      const shortConfig = mockConfig({ CHANNEL_TTL_SECONDS: 0, CLEANUP_INTERVAL_SECONDS: 1 });
-      const ch = createChannel(shortConfig);
+  describe('expireChannel', () => {
+    it('closes viewers and removes the channel', () => {
+      const ch = createChannel(config);
+      const ws = new FakeWebSocket();
+      addClient(ch.shareCode, FakeWebSocket.asWS(ws));
 
-      // Set lastUploadAt far in the past to force expiration
-      const stored = getChannel(ch.shareCode)!;
-      stored.lastUploadAt = Date.now() - 100_000;
-
-      await new Promise<void>((resolve) => {
-        startCleanupTimer(shortConfig);
-        setTimeout(() => {
-          stopCleanupTimer();
-          resolve();
-        }, 1500);
-      });
-
+      expect(expireChannel(ch.shareCode)).toBe(true);
       expect(channelExists(ch.shareCode)).toBe(false);
+      expect(ws.messagesOfType('channel_expired')).toHaveLength(1);
+      expect(ws.closeCalls[0].code).toBe(1001);
+      // A closing channel must not broadcast viewer counts.
+      expect(ws.messagesOfType('viewer_count').at(-1)).toMatchObject({ count: 1 });
     });
 
-    it('keeps active channels', async () => {
-      stopCleanupTimer();
-      const config2 = mockConfig({ CHANNEL_TTL_SECONDS: 3600, CLEANUP_INTERVAL_SECONDS: 1 });
-      const ch = createChannel(config2);
+    it('returns false for unknown and already-expired channels', () => {
+      expect(expireChannel('00000000')).toBe(false);
 
-      await new Promise<void>((resolve) => {
-        startCleanupTimer(config2);
-        setTimeout(() => {
-          stopCleanupTimer();
-          resolve();
-        }, 500);
-      });
+      const ch = createChannel(config, 60);
+      vi.advanceTimersByTime(60_000);
+      expect(expireChannel(ch.shareCode)).toBe(false);
+      expect(channelExists(ch.shareCode)).toBe(false);
+    });
+  });
 
-      expect(channelExists(ch.shareCode)).toBe(true);
+  describe('cleanup timer', () => {
+    it('sweeps expired channels with their own TTL and keeps active ones', () => {
+      const shortLived = createChannel(config, 60);
+      const longLived = createChannel(config, 3600);
+      startCleanupTimer(mockConfig({ CLEANUP_INTERVAL_SECONDS: 60 }));
+
+      vi.advanceTimersByTime(60_000);
+
+      expect(channelExists(shortLived.shareCode)).toBe(false);
+      expect(channelExists(longLived.shareCode)).toBe(true);
+    });
+
+    it('prunes the rate-limit attempt table instead of every request sweeping it', () => {
+      consumeAttempt('verify:10.0.0.1', 5);
+      consumeAttempt('verify:10.0.0.2', 5);
+      expect(getAttemptKeys()).toHaveLength(2);
+
+      startCleanupTimer(mockConfig({ CLEANUP_INTERVAL_SECONDS: 60 }));
+      vi.advanceTimersByTime(120_000);
+
+      expect(getAttemptKeys()).toEqual([]);
+    });
+  });
+
+  describe('shutdownAll', () => {
+    it('closes viewers with 1012 (service restart) and clears all state', () => {
+      const ch = createChannel(config);
+      const ws = new FakeWebSocket();
+      addClient(ch.shareCode, FakeWebSocket.asWS(ws));
+      consumeAttempt('verify:10.0.0.9', 5);
+
+      shutdownAll();
+
+      expect(channelExists(ch.shareCode)).toBe(false);
+      expect(getAttemptKeys()).toEqual([]);
+      expect(ws.closeCalls).toEqual([{ code: 1012, reason: 'Server restart' }]);
+      // Shutdown is not an expiry: no channel_expired message is sent.
+      expect(ws.messagesOfType('channel_expired')).toHaveLength(0);
     });
   });
 });

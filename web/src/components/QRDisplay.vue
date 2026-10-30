@@ -1,8 +1,8 @@
 <script setup lang="ts">
-import { ref, watch, onMounted, nextTick } from 'vue';
+import { computed, ref, watch, onMounted, nextTick } from 'vue';
 import { useI18n } from 'vue-i18n';
 import type { ConnectionStatus } from '../types';
-import { useQRCode } from '../composables/useQRCode';
+import { useQRCode, QR_BITMAP_SIZE } from '../composables/useQRCode';
 
 const props = defineProps<{
   text: string | null;
@@ -12,16 +12,33 @@ const props = defineProps<{
 
 const { t } = useI18n();
 const canvasRef = ref<HTMLCanvasElement | null>(null);
-const { generate } = useQRCode();
+const { generate, failure, clearFailure } = useQRCode();
+
+const failureTitle = computed(() =>
+  failure.value?.code === 'QR_PAYLOAD_TOO_LARGE'
+    ? t('viewer.qr.tooLongTitle')
+    : t('viewer.qr.renderFailed'),
+);
+
+const failureDetail = computed(() =>
+  failure.value?.code === 'QR_PAYLOAD_TOO_LARGE'
+    ? t('viewer.qr.tooLongDetail', {
+        bytes: failure.value.bytes,
+        max: failure.value.maxBytes,
+      })
+    : '',
+);
 
 async function renderQR(text: string): Promise<void> {
   await nextTick();
-  if (canvasRef.value) {
-    try {
-      await generate(canvasRef.value, text);
-    } catch {
-      // QR generation failed — canvas stays empty
-    }
+  const canvas = canvasRef.value;
+  if (!canvas) return;
+
+  try {
+    await generate(canvas, text);
+  } catch {
+    // 失败原因由 failure 暴露（容量超限 / 渲染失败），模板据此显示提示；
+    // 原文始终保留在下方，可复制 —— 不再出现「卡片空白且没有任何解释」。
   }
 }
 
@@ -29,6 +46,7 @@ async function renderQR(text: string): Promise<void> {
 watch(
   () => props.text,
   async (newText) => {
+    clearFailure();
     if (newText) {
       await renderQR(newText);
     }
@@ -54,12 +72,45 @@ onMounted(async () => {
     <div class="bg-white dark:bg-gray-800 rounded-2xl shadow-lg p-4 sm:p-5">
       <!-- Canvas -->
       <template v-if="text">
+        <!--
+          初始 width/height 直接等于位图分辨率（QR_BITMAP_SIZE），
+          不再先按 256 画一帧再被 qrcode 改成 1024。
+          canvas 始终保留在 DOM 中（失败时用 hidden 隐藏），否则渲染失败后
+          ref 为空，后续重试拿不到 canvas。
+        -->
         <canvas
+          v-show="!failure"
           ref="canvasRef"
-          width="256"
-          height="256"
+          :width="QR_BITMAP_SIZE"
+          :height="QR_BITMAP_SIZE"
           class="block w-full h-auto aspect-square rounded-xl"
         ></canvas>
+
+        <!-- 容量超限 / 渲染失败：给出明确原因，而不是留一张空白画布 -->
+        <div
+          v-if="failure"
+          class="w-full aspect-square flex items-center justify-center bg-red-50 dark:bg-red-900/20 rounded-xl px-4 text-center"
+        >
+          <div>
+            <svg
+              class="w-10 h-10 mx-auto mb-2 text-red-500"
+              fill="none"
+              stroke="currentColor"
+              viewBox="0 0 24 24"
+            >
+              <path
+                stroke-linecap="round"
+                stroke-linejoin="round"
+                stroke-width="1.5"
+                d="M12 9v2m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
+              />
+            </svg>
+            <p class="text-sm font-medium text-red-700 dark:text-red-400">{{ failureTitle }}</p>
+            <p v-if="failureDetail" class="text-xs text-red-500 dark:text-red-400/80 mt-1">
+              {{ failureDetail }}
+            </p>
+          </div>
+        </div>
       </template>
 
       <!-- Placeholder when no data -->

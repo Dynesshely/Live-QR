@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { ref, onMounted, computed } from 'vue';
 import { useI18n } from 'vue-i18n';
-import { useScanner } from '../composables/useScanner';
+import { OFFLINE_QUEUE_MAX, useScanner } from '../composables/useScanner';
 import BrandMark from './BrandMark.vue';
 import { APP_NAME } from '../brand';
 
@@ -33,6 +33,11 @@ async function handleStart(): Promise<void> {
 
   try {
     if (!videoRef.value) throw new Error('scanner.error.cameraGeneric::无法访问摄像头元素');
+
+    // 重试路径：先把上一次的摄像头与通道彻底收干净。
+    // 旧 MediaStream 的 track 不关，部分机型/浏览器第二次 getUserMedia 会直接失败，
+    // 而且摄像头指示灯会一直亮着。
+    if (state.value.status === 'error') stop();
 
     await startCamera(videoRef.value);
     await start();
@@ -75,7 +80,11 @@ onMounted(() => {
   <div class="min-h-dvh bg-gray-900 flex flex-col">
     <!-- Camera area -->
     <div class="relative flex-1 flex items-center justify-center bg-black overflow-hidden">
-      <!-- Video preview -->
+      <!--
+        Video preview：object-cover（移动端全屏取景）。
+        关键：解码区域已按 cover 的中心裁切同步计算（utils/scan.ts 的 computeCoverCrop），
+        所以「画面里看得到的区域 = 实际被解码的区域」，不会解出画面外看不见的二维码。
+      -->
       <video
         ref="videoRef"
         class="absolute inset-0 w-full h-full object-cover"
@@ -84,9 +93,14 @@ onMounted(() => {
         muted
       ></video>
 
-      <!-- Scan frame overlay：固定 w-64 在 320px 屏上几乎顶满，改为按视口宽度收敛 -->
+      <!--
+        取景框：仅作对焦引导，不构成裁切限制 —— 解码范围覆盖整个可见画面，
+        因此这里的边框不会「骗」用户把码塞进框里才扫得到。
+        固定 w-64 在 320px 屏上几乎顶满，改为按视口宽度收敛。
+      -->
       <div
         v-if="state.status === 'scanning'"
+        aria-hidden="true"
         class="relative z-10 w-[min(70vw,16rem)] aspect-square border-2 border-green-400 rounded-3xl"
       >
         <div
@@ -217,7 +231,7 @@ onMounted(() => {
           />
         </svg>
         <span class="text-yellow-300 text-sm">
-          {{ t('scanner.offlineQueue', { count: state.offlineQueueSize, max: 6 }) }}
+          {{ t('scanner.offlineQueue', { count: state.offlineQueueSize, max: OFFLINE_QUEUE_MAX }) }}
         </span>
       </div>
 

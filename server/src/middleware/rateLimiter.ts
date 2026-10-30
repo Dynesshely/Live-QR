@@ -1,15 +1,28 @@
 import type { Request, Response, NextFunction } from 'express';
-import { channelExists, getChannel } from '../services/channelStore.js';
+import { getChannel } from '../services/channelStore.js';
 import { logger } from '../logger.js';
 import type { AppConfig } from '../types.js';
+import { consumeAttempt } from '../services/attemptStore.js';
+
+const UPLOAD_WINDOW_MS = 1000;
+
+/** Extract the peer IP the limiters key on (never trusted blindly: see TRUST_PROXY). */
+export function clientIpOf(req: Request): string {
+  return req.ip || req.socket.remoteAddress || 'unknown';
+}
 
 // ── Upload rate limiter (per shareCode, sliding window) ──
 
+/**
+ * Must run *after* the share-code/text validators so malformed requests do not
+ * consume a channel's quota.
+ */
 export function createUploadRateLimiter(config: AppConfig) {
   return function uploadRateLimiter(req: Request, res: Response, next: NextFunction): void {
-    const { shareCode } = req.body;
+    const shareCode = res.locals.shareCode as string | undefined;
 
-    if (!shareCode || typeof shareCode !== 'string') {
+    // Defensive: the validator in front of us normally guarantees this.
+    if (!shareCode) {
       next();
       return;
     }
@@ -20,18 +33,17 @@ export function createUploadRateLimiter(config: AppConfig) {
       return;
     }
 
-    const windowMs = 1000; // 1 second window
-    const cutoff = Date.now() - windowMs;
+    const cutoff = Date.now() - UPLOAD_WINDOW_MS;
 
     // Trim stale entries
-    channel.uploadWindow = channel.uploadWindow.filter(ts => ts > cutoff);
+    channel.uploadWindow = channel.uploadWindow.filter((ts) => ts > cutoff);
 
     if (channel.uploadWindow.length >= config.UPLOAD_RATE_LIMIT) {
-      logger.warn('upload_rate_limited', `Rate limit exceeded`, shareCode);
+      logger.warn('upload_rate_limited', 'Rate limit exceeded', shareCode);
       res.status(429).json({
         code: 429,
         error: 'RATE_LIMITED',
-        message: `上传频率过高（限制 ${config.UPLOAD_RATE_LIMIT} 次/秒），请稍后重试`,
+        message: '上传频率过高（限制 ' + config.UPLOAD_RATE_LIMIT + ' 次/秒），请稍后重试',
       });
       return;
     }
@@ -42,21 +54,16 @@ export function createUploadRateLimiter(config: AppConfig) {
 
 // ── Verify rate limiter (per IP, sliding window) ──
 
-const verifyAttempts = new Map<string, number[]>();
-
+/**
+ * Must run *after* the share-code format validator so invalid codes do not
+ * consume the per-IP quota.
+ */
 export function createVerifyRateLimiter(config: AppConfig) {
   return function verifyRateLimiter(req: Request, res: Response, next: NextFunction): void {
-    const ip = req.ip || req.socket.remoteAddress || 'unknown';
-    const windowMs = 60_000; // 60 second window
-    const cutoff = Date.now() - windowMs;
+    const ip = clientIpOf(req);
 
-    let attempts = verifyAttempts.get(ip) || [];
-
-    // Trim stale entries
-    attempts = attempts.filter(ts => ts > cutoff);
-
-    if (attempts.length >= config.VERIFY_RATE_LIMIT) {
-      logger.warn('verify_rate_limited', `Verify rate limit exceeded`, undefined, ip);
+    if (!consumeAttempt('verify:' + ip, config.VERIFY_RATE_LIMIT)) {
+      logger.warn('verify_rate_limited', 'Verify rate limit exceeded', undefined, ip);
       res.status(429).json({
         code: 429,
         error: 'VERIFY_RATE_LIMITED',
@@ -65,19 +72,25 @@ export function createVerifyRateLimiter(config: AppConfig) {
       return;
     }
 
-    attempts.push(Date.now());
-    verifyAttempts.set(ip, attempts);
+    next();
+  };
+}
 
-    // Garbage collection: if map gets too large, sweep stale entries
-    if (verifyAttempts.size > 1000) {
-      for (const [storedIp, timestamps] of verifyAttempts) {
-        const fresh = timestamps.filter(ts => ts > cutoff);
-        if (fresh.length === 0) {
-          verifyAttempts.delete(storedIp);
-        } else {
-          verifyAttempts.set(storedIp, fresh);
-        }
-      }
+// ── Create rate limiter (per IP, sliding window) ──
+
+/** Channel creation is cheap for us but grows an in-memory map: cap it. */
+export function createCreateRateLimiter(config: AppConfig) {
+  return function createRateLimiter(req: Request, res: Response, next: NextFunction): void {
+    const ip = clientIpOf(req);
+
+    if (!consumeAttempt('create:' + ip, config.CREATE_RATE_LIMIT)) {
+      logger.warn('create_rate_limited', 'Create rate limit exceeded', undefined, ip);
+      res.status(429).json({
+        code: 429,
+        error: 'CREATE_RATE_LIMITED',
+        message: '创建通道过于频繁，请稍后重试',
+      });
+      return;
     }
 
     next();

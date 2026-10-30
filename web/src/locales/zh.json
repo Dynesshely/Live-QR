@@ -25,7 +25,7 @@
     "offlineQueue": "网络异常，数据将在恢复后重传（缓存 {count}/{max}）",
     "uploadCount": "已上传：{count} 条",
     "status": {
-      "idle": "",
+      "idle": "空闲",
       "scanning": "扫码中",
       "starting": "启动中",
       "error": "错误"
@@ -38,7 +38,8 @@
         "channel_expired": "通道已过期",
         "rate_limited": "上传频率限制",
         "upload_failed": "上传失败",
-        "network_error_cached": "网络异常，已缓存"
+        "network_error_cached": "网络异常，已缓存",
+        "rejected": "服务端拒绝了本次上传"
       }
     },
     "error": {
@@ -49,25 +50,29 @@
       "permissionDenied": "摄像头权限被拒绝，请在浏览器设置中允许访问摄像头",
       "cameraGeneric": "无法访问摄像头: {detail}",
       "createChannelFailed": "创建分享码失败",
-      "rebuildFailed": "分享码已过期，重建失败"
+      "rebuildFailed": "分享码已过期，重建失败",
+      "videoTimeout": "摄像头迟迟没有画面输出，请检查是否被其它应用占用"
     }
   },
   "viewer": {
-    "expiredBanner": "该分享码已过期",
     "reenterCode": "重新输入分享码",
     "switchCode": "切换分享码",
     "input": {
       "subtitle": "实时二维码展示系统",
       "label": "输入 8 位分享码",
       "submit": "开始展示",
-      "hint": "请向 App 用户索取 8 位分享码"
+      "hint": "请向 App 用户索取 8 位分享码",
+      "verifying": "正在验证..."
     },
     "qr": {
       "waiting": "等待数据...",
       "reconnecting": "正在重连...（第 {attempt}/{max} 次）",
       "expired": "该分享码已过期",
       "enterNewCode": "请重新输入分享码",
-      "currentText": "当前文本内容"
+      "currentText": "当前文本内容",
+      "tooLongTitle": "内容超出二维码容量",
+      "tooLongDetail": "这段文本有 {bytes} 字节，而 H 级纠错最多只能容纳 {max} 字节。原文已在下方完整保留，仍可复制。",
+      "renderFailed": "二维码渲染失败，原文已在下方完整保留。"
     },
     "status": {
       "unconnected": "未连接",
@@ -91,8 +96,27 @@
       "codeNotFound": "分享码不存在或已过期",
       "rateLimited": "验证请求过于频繁，请稍后重试",
       "verifyFailed": "验证失败",
-      "networkError": "网络错误，无法验证分享码"
+      "networkError": "网络错误，无法验证分享码",
+      "channelExpired": "通道已过期或被关闭"
+    },
+    "banner": {
+      "expired": "该分享码已过期",
+      "invalid_code": "分享码无效或已过期",
+      "room_full": "该通道观看人数已满",
+      "verify_failed": "分享码验证失败"
     }
+  },
+  "serverErrors": {
+    "INVALID_SHARE_CODE": "分享码必须是 8 位数字",
+    "TEXT_EMPTY": "没有可上传的文本",
+    "TEXT_TOO_LONG": "文本超过服务端上限（2000 字符）",
+    "INVALID_EXPIRE_SECONDS": "过期时长无效",
+    "CHANNEL_NOT_FOUND": "通道不存在或已过期",
+    "RATE_LIMITED": "上传频率受限，请稍等",
+    "VERIFY_RATE_LIMITED": "验证请求过于频繁，请稍后再试",
+    "TOO_MANY_VIEWERS": "该通道观看人数已满",
+    "SERVICE_UNAVAILABLE": "服务暂时不可用，请重试",
+    "INTERNAL_ERROR": "服务器错误，请稍后重试"
   },
   "theme": {
     "switchToDark": "切换到深色模式",

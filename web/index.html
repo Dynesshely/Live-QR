@@ -7,7 +7,15 @@
       content="width=device-width, initial-scale=1.0, viewport-fit=cover, interactive-widget=resizes-content"
     />
     <meta name="description" content="Live QR — Real-time QR code scanning and display system" />
-    <meta name="theme-color" content="#2563EB" />
+    <!--
+      theme-color 与图标渐变色对齐（scripts/render-icon.mjs 的 ICON.bg.from = #3B82F6），
+      否则移动端地址栏/状态栏品牌色和图标对不上。
+    -->
+    <meta name="theme-color" content="#3B82F6" />
+    <!--
+      品牌名同步点：HTML 无法 import src/brand.ts 的 APP_NAME，
+      这里以及下面的 <title>、og:title 需要与 brand.ts 手动保持一致。
+    -->
     <meta property="og:title" content="Live QR" />
     <meta property="og:description" content="Real-time QR code scanning and display system" />
     <meta property="og:type" content="website" />
@@ -15,6 +23,7 @@
     <link rel="icon" type="image/png" sizes="32x32" href="/favicon-32.png" />
     <!-- iOS 不认 SVG favicon，「添加到主屏幕」只认 apple-touch-icon（须为 PNG 且自带外框） -->
     <link rel="apple-touch-icon" sizes="180x180" href="/apple-touch-icon.png" />
+    <!-- 与 src/brand.ts 的 APP_NAME 同步（见上方说明） -->
     <title>Live QR</title>
     <!-- Prevent flash of wrong theme (FOUC) -->
     <script>

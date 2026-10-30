@@ -1,17 +1,56 @@
 services:
   qr-live:
-    build: .
-    ports:
-      - "41606:80"
+    build:
+      context: .
+      dockerfile: Dockerfile
+    # Optional: a missing .env is not an error (defaults below apply).
+    # Long syntax needs Docker Compose >= 2.24; on older versions use
+    # `env_file: [.env]` and always create .env first.
+    env_file:
+      - path: .env
+        required: false
+    # Compose reads the project .env for interpolation, so .env wins over the
+    # defaults here. Keeping the full list explicit means a clean checkout
+    # still starts with the documented defaults, without a .env file.
     environment:
-      - PORT_HTTP=41601
-      - PORT_WS=41602
-      - CHANNEL_TTL_SECONDS=1800
-      - CLEANUP_INTERVAL_SECONDS=60
-      - UPLOAD_RATE_LIMIT=2
-      - MAX_VIEWERS_PER_CHANNEL=50
-      - VERIFY_RATE_LIMIT=10
-      - MAX_TEXT_LENGTH=2000
-      - CADDY_DOMAIN=
-      - CADDY_EMAIL=
+      PORT_HTTP: ${PORT_HTTP:-41601}
+      PORT_WS: ${PORT_WS:-41602}
+      CHANNEL_TTL_SECONDS: ${CHANNEL_TTL_SECONDS:-1800}
+      CLEANUP_INTERVAL_SECONDS: ${CLEANUP_INTERVAL_SECONDS:-60}
+      UPLOAD_RATE_LIMIT: ${UPLOAD_RATE_LIMIT:-2}
+      MAX_VIEWERS_PER_CHANNEL: ${MAX_VIEWERS_PER_CHANNEL:-50}
+      VERIFY_RATE_LIMIT: ${VERIFY_RATE_LIMIT:-10}
+      MAX_TEXT_LENGTH: ${MAX_TEXT_LENGTH:-2000}
+      TRUST_PROXY: ${TRUST_PROXY:-loopback}
+      CREATE_RATE_LIMIT: ${CREATE_RATE_LIMIT:-10}
+      WS_ALLOWED_ORIGINS: ${WS_ALLOWED_ORIGINS:-}
+      # Default: TLS terminated at the edge, container speaks plain HTTP on :80.
+      CADDY_SITE_ADDRESS: ${CADDY_SITE_ADDRESS:-:80}
+    ports:
+      # Host port is configurable; the container port stays 80.
+      - "${LIVE_QR_PORT:-41606}:80"
+      # ── Optional in-container TLS ─────────────────────────────────────────
+      # 1. set CADDY_SITE_ADDRESS=qr.example.com in .env
+      # 2. publish 443 by uncommenting the mapping below
+      # 3. persist certificates: uncomment the volumes (bottom of this file)
+      # 4. make sure nothing else terminates TLS in front of this container
+      #    (the edge proxy must be removed for the ACME challenge to arrive)
+      # - "443:443"
+    healthcheck:
+      test:
+        - CMD-SHELL
+        - |
+          node -e "fetch('http://127.0.0.1:' + (process.env.PORT_HTTP || 41601) + '/api/health').then(r => r.json()).then(j => process.exit(j.status === 'ok' ? 0 : 1)).catch(() => process.exit(1))"
+      interval: 30s
+      timeout: 5s
+      start_period: 15s
+      retries: 3
+    # docker stop sends SIGTERM; entrypoint.sh gives node + caddy 10s to exit.
+    stop_grace_period: 20s
     restart: unless-stopped
+    # volumes:
+    #   - caddy-data:/srv/caddy/data
+
+# Named volume used only when in-container TLS is enabled (see above).
+# volumes:
+#   caddy-data:

@@ -1,24 +1,51 @@
 <script setup lang="ts">
 import { ref, watch } from 'vue';
 import { useI18n } from 'vue-i18n';
+import { APP_NAME } from '../brand';
 
 const emit = defineEmits<{
   submit: [shareCode: string];
   back: [];
 }>();
 
-defineProps<{
+const props = defineProps<{
   disabled?: boolean;
+  /** 正在验证分享码：按钮显示 loading，输入框禁用，但仍停留在本页 */
+  loading?: boolean;
   error?: string | null;
+  /**
+   * 上一次提交过的分享码。
+   * 验证失败（429 / 网络错误 / 分享码错误）后回到输入页时回填，
+   * 避免用户重新敲 8 位数字。
+   */
+  initialCode?: string;
 }>();
 
 const { t } = useI18n();
 
-const inputValue = ref('');
+function sanitizeCode(value: string): string {
+  return value.replace(/\D/g, '').slice(0, 8);
+}
+
+const inputValue = ref(sanitizeCode(props.initialCode ?? ''));
+
+// 外部回填（组件重建时 initialCode 已就绪；运行中变化时同步）
+watch(
+  () => props.initialCode,
+  (val) => {
+    const next = sanitizeCode(val ?? '');
+    if (next && next !== inputValue.value) {
+      inputValue.value = next;
+    }
+  },
+);
 
 // Only allow digits, max 8
 watch(inputValue, (val) => {
-  inputValue.value = val.replace(/\D/g, '').slice(0, 8);
+  const cleaned = sanitizeCode(val);
+  if (cleaned !== val) {
+    inputValue.value = cleaned;
+  }
 });
 
 const isCodeComplete = () => inputValue.value.length === 8;
@@ -36,9 +63,9 @@ function translateError(err: string): string {
 <template>
   <div class="w-full flex flex-col items-center justify-center px-3 sm:px-4">
     <div class="w-full max-w-md">
-      <!-- Title -->
+      <!-- Title：品牌名唯一来源是 brand.ts 的 APP_NAME，不在模板里硬编码 -->
       <h1 class="text-3xl sm:text-4xl font-bold text-center text-gray-800 dark:text-gray-100 mb-2">
-        Live QR
+        {{ APP_NAME }}
       </h1>
       <p class="text-center text-gray-500 dark:text-gray-400 mb-6 sm:mb-8">
         {{ t('viewer.input.subtitle') }}
@@ -46,7 +73,10 @@ function translateError(err: string): string {
 
       <!-- Input card -->
       <div class="bg-white dark:bg-gray-800 rounded-2xl shadow-lg p-5 sm:p-8">
-        <!-- Error banner -->
+        <!--
+          Error banner：验证失败/限流/网络错误都会回到本页，错误就在这里显示
+          （错误值是 i18n 键或服务端错误码映射后的键，统一走 translateError）。
+        -->
         <div
           v-if="error"
           class="mb-4 p-3 rounded-lg bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 text-red-700 dark:text-red-400 text-sm"
@@ -72,15 +102,22 @@ function translateError(err: string): string {
           @keyup.enter="handleSubmit"
         />
 
-        <!-- Submit button -->
+        <!-- Submit button：验证中显示 loading，页面不跳转 -->
         <button
-          :disabled="!isCodeComplete() || disabled"
+          :disabled="!isCodeComplete() || disabled || loading"
           class="w-full mt-6 py-3.5 rounded-xl font-semibold text-white transition-all
                  bg-blue-600 hover:bg-blue-700 active:scale-[0.98]
                  disabled:bg-gray-300 dark:disabled:bg-gray-600 disabled:cursor-not-allowed disabled:active:scale-100"
           @click="handleSubmit"
         >
-          {{ t('viewer.input.submit') }}
+          <span v-if="loading" class="inline-flex items-center justify-center gap-2">
+            <span
+              class="animate-spin w-4 h-4 border-2 border-white border-t-transparent rounded-full"
+              aria-hidden="true"
+            ></span>
+            {{ t('viewer.input.verifying') }}
+          </span>
+          <span v-else>{{ t('viewer.input.submit') }}</span>
         </button>
 
         <!-- Back button -->

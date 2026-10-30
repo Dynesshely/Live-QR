@@ -1,7 +1,7 @@
 <script setup lang="ts">
-import { ref, nextTick } from 'vue';
+import { computed, ref, nextTick } from 'vue';
 import { useI18n } from 'vue-i18n';
-import { useQRCode } from '../composables/useQRCode';
+import { useQRCode, QR_BITMAP_SIZE } from '../composables/useQRCode';
 import type { HistoryMessage } from '../types';
 
 defineProps<{
@@ -9,10 +9,25 @@ defineProps<{
 }>();
 
 const { t, locale } = useI18n();
-const { generate } = useQRCode();
+const { generate, failure, clearFailure } = useQRCode();
 
 const modalText = ref<string | null>(null);
 const modalCanvasRef = ref<HTMLCanvasElement | null>(null);
+
+const failureTitle = computed(() =>
+  failure.value?.code === 'QR_PAYLOAD_TOO_LARGE'
+    ? t('viewer.qr.tooLongTitle')
+    : t('viewer.qr.renderFailed'),
+);
+
+const failureDetail = computed(() =>
+  failure.value?.code === 'QR_PAYLOAD_TOO_LARGE'
+    ? t('viewer.qr.tooLongDetail', {
+        bytes: failure.value.bytes,
+        max: failure.value.maxBytes,
+      })
+    : '',
+);
 
 function formatTime(ts: number): string {
   return new Date(ts).toLocaleTimeString(locale.value, {
@@ -23,19 +38,22 @@ function formatTime(ts: number): string {
 }
 
 async function openQRModal(text: string): Promise<void> {
+  // 清掉上一条内容的失败状态，避免弹窗打开瞬间闪一下旧错误
+  clearFailure();
   modalText.value = text;
   await nextTick();
   if (modalCanvasRef.value) {
     try {
       await generate(modalCanvasRef.value, text);
     } catch {
-      // QR generation failed
+      // 失败原因由 failure 暴露，模板展示「超出容量 / 渲染失败」+ 原文
     }
   }
 }
 
 function closeQRModal(): void {
   modalText.value = null;
+  clearFailure();
 }
 </script>
 
@@ -129,12 +147,39 @@ function closeQRModal(): void {
           </button>
         </div>
         <div class="flex justify-center">
+          <!-- 初始尺寸 = 位图分辨率；失败时 canvas 仍留在 DOM（v-show），只换成提示块 -->
           <canvas
+            v-show="!failure"
             ref="modalCanvasRef"
-            width="256"
-            height="256"
+            :width="QR_BITMAP_SIZE"
+            :height="QR_BITMAP_SIZE"
             class="block w-full h-auto max-w-64 aspect-square rounded-xl"
           ></canvas>
+
+          <div
+            v-if="failure"
+            class="w-full max-w-64 aspect-square flex items-center justify-center bg-red-50 dark:bg-red-900/20 rounded-xl px-4 text-center"
+          >
+            <div>
+              <svg
+                class="w-10 h-10 mx-auto mb-2 text-red-500"
+                fill="none"
+                stroke="currentColor"
+                viewBox="0 0 24 24"
+              >
+                <path
+                  stroke-linecap="round"
+                  stroke-linejoin="round"
+                  stroke-width="1.5"
+                  d="M12 9v2m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
+                />
+              </svg>
+              <p class="text-sm font-medium text-red-700 dark:text-red-400">{{ failureTitle }}</p>
+              <p v-if="failureDetail" class="text-xs text-red-500 dark:text-red-400/80 mt-1">
+                {{ failureDetail }}
+              </p>
+            </div>
+          </div>
         </div>
         <p class="text-center text-xs text-gray-400 dark:text-gray-500 mt-4 break-all select-all">
           {{ modalText }}

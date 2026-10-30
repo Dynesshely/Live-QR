@@ -25,7 +25,7 @@
     "offlineQueue": "Network unavailable, data will retransmit ({count}/{max})",
     "uploadCount": "Uploaded: {count} items",
     "status": {
-      "idle": "",
+      "idle": "Idle",
       "scanning": "Scanning",
       "starting": "Starting",
       "error": "Error"
@@ -38,7 +38,8 @@
         "channel_expired": "Channel expired",
         "rate_limited": "Upload rate limited",
         "upload_failed": "Upload failed",
-        "network_error_cached": "Network error, data cached"
+        "network_error_cached": "Network error, data cached",
+        "rejected": "Upload rejected by the server"
       }
     },
     "error": {
@@ -49,25 +50,29 @@
       "permissionDenied": "Camera permission denied. Please allow camera access in browser settings.",
       "cameraGeneric": "Cannot access camera: {detail}",
       "createChannelFailed": "Failed to create share code",
-      "rebuildFailed": "Share code expired, rebuild failed"
+      "rebuildFailed": "Share code expired, rebuild failed",
+      "videoTimeout": "The camera did not produce any frames in time. Check whether another app is using it."
     }
   },
   "viewer": {
-    "expiredBanner": "This share code has expired",
     "reenterCode": "Re-enter share code",
     "switchCode": "Switch code",
     "input": {
       "subtitle": "Real-time QR Code Display System",
       "label": "Enter 8-digit share code",
       "submit": "Start Displaying",
-      "hint": "Ask the app user for an 8-digit share code"
+      "hint": "Ask the app user for an 8-digit share code",
+      "verifying": "Verifying..."
     },
     "qr": {
       "waiting": "Waiting for data...",
       "reconnecting": "Reconnecting... (attempt {attempt}/{max})",
       "expired": "This share code has expired",
       "enterNewCode": "Please re-enter a share code",
-      "currentText": "Current text content"
+      "currentText": "Current text content",
+      "tooLongTitle": "Content too long for a QR code",
+      "tooLongDetail": "This text is {bytes} bytes, but error-correction level H allows at most {max} bytes. The full text is still shown below and can be copied.",
+      "renderFailed": "Failed to render this QR code. The full text is still shown below."
     },
     "status": {
       "unconnected": "Not connected",
@@ -91,8 +96,27 @@
       "codeNotFound": "Share code not found or expired",
       "rateLimited": "Too many verification requests, please try later",
       "verifyFailed": "Verification failed",
-      "networkError": "Network error, cannot verify share code"
+      "networkError": "Network error, cannot verify share code",
+      "channelExpired": "This channel has expired or was closed"
+    },
+    "banner": {
+      "expired": "This share code has expired",
+      "invalid_code": "Share code invalid or expired",
+      "room_full": "This channel is full",
+      "verify_failed": "Could not verify this share code"
     }
+  },
+  "serverErrors": {
+    "INVALID_SHARE_CODE": "Share code must be exactly 8 digits",
+    "TEXT_EMPTY": "There is no text to upload",
+    "TEXT_TOO_LONG": "Text is longer than the server limit (2000 characters)",
+    "INVALID_EXPIRE_SECONDS": "Invalid expiration duration",
+    "CHANNEL_NOT_FOUND": "Channel not found or expired",
+    "RATE_LIMITED": "Upload rate limited, please wait a moment",
+    "VERIFY_RATE_LIMITED": "Too many verification attempts, please try again later",
+    "TOO_MANY_VIEWERS": "This channel reached the maximum number of viewers",
+    "SERVICE_UNAVAILABLE": "Service temporarily unavailable, please retry",
+    "INTERNAL_ERROR": "Server error, please retry later"
   },
   "theme": {
     "switchToDark": "Switch to dark mode",

@@ -1,5 +1,18 @@
-:80 {
-	# Security headers
+# Site address for Caddy.
+#
+# Default ":80" = plain HTTP inside the container, because the official
+# deployment terminates TLS at the edge (EdgeOne / openresty in front) and only
+# proxies HTTP to this container. Plain ":80" also means Caddy will not try to
+# obtain a certificate, so no 443 mapping and no ACME e-mail are needed.
+#
+# Set CADDY_SITE_ADDRESS=qr.example.com to let Caddy manage the certificate
+# itself: that requires publishing 80/443 and a writable, persisted data dir
+# (/srv/caddy/data) — see the commented block in docker-compose.yml.
+#
+# NOTE: CADDY_DOMAIN / CADDY_EMAIL were removed: nothing ever read them.
+{$CADDY_SITE_ADDRESS::80} {
+	# Security headers. HSTS is ignored by browsers over plain HTTP and takes
+	# effect on the public HTTPS endpoint terminated by the edge.
 	header {
 		X-Content-Type-Options "nosniff"
 		X-Frame-Options "DENY"
@@ -7,6 +20,7 @@
 		-Content-Security-Policy
 	}
 
+	# Only /ws is a valid WebSocket path; the server rejects everything else.
 	handle /ws* {
 		reverse_proxy localhost:{$PORT_WS:41602} {
 			flush_interval -1

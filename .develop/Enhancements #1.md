@@ -3,6 +3,11 @@
 **日期**: 2026-06-17  
 **状态**: [DONE] 全部实施完成
 
+> ⚠️ **时效说明（2026-10-30）**：本文记录的是 2026-06-17 的改进决策与当时实现，
+> 数字/片段可能与当前代码不一致（已就地标注）。**当前权威文档是 `.develop/HANDOFF.md`**。
+> 已过时的具体数字：server 测试 37 → **134**，web 测试 4 → **59**；
+> theme-color `#2563EB` → **`#3B82F6`**；品牌名 `QR-Live` → **`Live QR`**。
+
 ---
 
 ## 决策总览
@@ -54,9 +59,11 @@ export const appConfigSchema = z.object({
 });
 ```
 
-- `dotenv/config` 自动加载 `.env` 文件
+- `dotenv/config` 自动加载 `.env` 文件（从**进程工作目录**读取；本地开发放 `server/.env`）
 - 非法值在启动时立即报错（如 `PORT_HTTP=abc`）
 - `AppConfig` 类型从 schema 自动推导
+- **2026-10-30 现状**：schema 已增加 `CREATE_RATE_LIMIT` / `TRUST_PROXY` /
+  `WS_ALLOWED_ORIGINS`，并派生 body 上限与 `expire_seconds` 范围，见 `HANDOFF.md` §7。
 
 ### 2. Caddyfile 安全加固
 
@@ -76,6 +83,9 @@ export const appConfigSchema = z.object({
 }
 ```
 
+> 2026-10-30 现状：站点地址改为可配的 `{$CADDY_SITE_ADDRESS::80}`，并新增
+> `handle /ws*` → 41602、`handle /api/*` → 41601 两段反代；以仓库根 `Caddyfile` 为准。
+
 ### 3. Dockerfile — Caddy 安装方式
 
 ```dockerfile
@@ -87,11 +97,17 @@ RUN apk add --no-cache curl ca-certificates \
 RUN apk add --no-cache caddy ca-certificates
 ```
 
-### 4. 优雅关闭修复 (`server/src/index.ts`)
+> 2026-10-30 现状：runtime 还安装了 `tini` 与 `libcap`（`setcap` 让非 root 绑 80/443）、
+> 用 uid 10001 运行、加 `HEALTHCHECK`；Caddy 版本可选用 `--build-arg CADDY_VERSION` 钉死。
+> 见 `Dockerfile` 与 `HANDOFF.md` §11。
+
+### 4. 优雅关闭修复（原 `server/src/index.ts`）
 
 - 添加 `shuttingDown` 标志防重入
 - 使用 `Promise.all` 并行关闭 WS + HTTP server
 - 两个 server 都关闭后才 `process.exit(0)`
+- 2026-10-30 现状：启动/关闭逻辑搬到 `server/src/server.ts` 的 `createServers()` /
+  `start()` / `close()`（可测试，import 不再起服务）；容器内由 `tini` + `entrypoint.sh` 转发信号。
 
 ### 5. Tailwind CSS v4 升级
 
@@ -104,7 +120,10 @@ RUN apk add --no-cache caddy ca-certificates
 
 ### 6. 测试覆盖
 
-**Server (37 tests)**:
+> **2026-10-30 现状**：server **9 个测试文件 / 134 用例**，web **10 个文件 / 59 用例**。
+> 下表是 2026-06 的基线，仅作历史参考（已显著扩充）。
+
+**Server（37 tests，2026-06-17 基线）**:
 
 | 模块           | 测试文件               | 测试数 |
 | -------------- | ---------------------- | ------ |
@@ -114,7 +133,7 @@ RUN apk add --no-cache caddy ca-certificates
 | Channel Routes | `channel.test.ts`      | 6      |
 | Upload Routes  | `upload.test.ts`       | 6      |
 
-**Web (4 tests)**:
+**Web（4 tests，2026-06-17 基线）**:
 
 | 模块    | 测试文件            | 测试数 |
 | ------- | ------------------- | ------ |
@@ -122,17 +141,24 @@ RUN apk add --no-cache caddy ca-certificates
 
 ### 7. Logo / Favicon
 
-- `assets/logo.svg` — 源文件
-- `web/public/favicon.svg` — Favicon（含动画脉冲）
-- 设计：蓝底圆角方块 + 3 个 QR 定位图案 + 绿色 Live 点 + 扫描光束
+> ⚠️ **本节已过时（2026-10-30 标注）** —— 描述的是早期图标实现：三段式定位图案、
+> 扫描光束、动画脉冲均已不存在，渐变也不是「蓝紫」而是纯蓝 `#3B82F6 → #1D4ED8`，
+> 实时信标只有 1 个弧环（无「同心环」）。
+> **现行实现以 `web/scripts/render-icon.mjs` 的 `ICON` 常量为唯一来源**
+> （方环定位图案 + 单环信标），产物由 `cd web && pnpm icon` 生成，不要手改。
+> 差异证据见 `.develop/HANDOFF-AUDIT.md` 第 2 节；现行说明以 `README.md`「图标」一节为准。
+
+- ~~`assets/logo.svg` — 源文件~~（实为 `pnpm icon` 的生成物，源在 `render-icon.mjs`）
+- ~~`web/public/favicon.svg` — Favicon（含动画脉冲）~~（无动画）
+- ~~设计：蓝底圆角方块 + 3 个 QR 定位图案 + 绿色 Live 点 + 扫描光束~~（无扫描光束）
 
 ### 8. HTML Meta 标签
 
 ```html
-<meta name="description" content="QR-Live — 实时二维码扫描与展示系统..." />
-<meta name="theme-color" content="#2563EB" />
-<meta property="og:title" content="QR-Live" />
-<meta property="og:description" content="实时二维码扫描与展示系统" />
+<meta name="description" content="Live QR — Real-time QR code scanning and display system" />
+<meta name="theme-color" content="#3B82F6" />
+<meta property="og:title" content="Live QR" />
+<meta property="og:description" content="Real-time QR code scanning and display system" />
 <meta property="og:type" content="website" />
 <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
 ```

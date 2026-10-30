@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref } from 'vue';
+import { computed, onMounted, ref } from 'vue';
 import { useI18n } from 'vue-i18n';
 import { useWebSocket } from './composables/useWebSocket';
 import { useTheme } from './composables/useTheme';
@@ -11,15 +11,40 @@ import StatusIndicator from './components/StatusIndicator.vue';
 import ScannerView from './components/ScannerView.vue';
 import FooterBar from './components/FooterBar.vue';
 import BrandMark from './components/BrandMark.vue';
+import LegalBanner from './components/LegalBanner.vue';
+import LegalConsentDialog from './components/LegalConsentDialog.vue';
+import LegalTermsDialog from './components/LegalTermsDialog.vue';
+import { useLegal } from './composables/useLegal';
 import { APP_NAME } from './brand';
+import type { ViewerErrorKind } from './types';
 
 type AppMode = 'home' | 'scanner' | 'viewer';
 
 const { t } = useI18n();
-const { isDark, toggleTheme, resolvedTheme } = useTheme();
+const { isDark, toggleTheme } = useTheme();
 const { locale, setLocale, availableLocales, localeLabels } = useLocale();
 
 const mode = ref<AppMode>('home');
+
+// ── 合规提示（三层：顶部 Banner / 首次确认 / 完整条款）──
+// 状态是模块级单例：Banner、两个弹窗与 App 共享同一份，不做 props 之外的同步。
+const {
+  termsOpen,
+  consentOpen,
+  openTerms,
+  closeTerms,
+  dismissConsent,
+  maybePromptConsent,
+  agree: agreeLegal,
+} = useLegal();
+
+onMounted(() => {
+  // 没有持久化同意记录才弹；隐私模式下 localStorage 不可用则每次进入都弹（刻意的降级）
+  maybePromptConsent();
+});
+
+/** 最近一次提交的分享码：验证失败回到输入页时回填，用户不用重敲 8 位数字 */
+const submittedCode = ref('');
 
 // ── Viewer state ──
 
@@ -31,11 +56,14 @@ const {
   reconnectAttempt,
   shareCode,
   errorMessage,
+  errorKind: viewerErrorKind,
+  sessionStarted,
   connect,
   disconnect,
 } = useWebSocket();
 
 function handleConnect(code: string): void {
+  submittedCode.value = code;
   connect(code);
 }
 
@@ -46,6 +74,8 @@ function handleViewerDisconnect(): void {
 
 function handleSwitchCode(): void {
   // Disconnect WS and go back to share code input (stay in viewer mode)
+  // 用户明确要换码：清掉回填值，让输入框空出来
+  submittedCode.value = '';
   disconnect();
 }
 
@@ -53,9 +83,34 @@ function handleScannerBack(): void {
   mode.value = 'home';
 }
 
+/**
+ * 只有「验证通过并进入会话」之后才切到仪表盘：
+ * - verifying 留在输入页（按钮 loading），否则会先闪一下仪表盘再退回；
+ * - 验证阶段就失败（分享码错 / 429 / 网络）时 sessionStarted 仍是 false，
+ *   同样留在输入页，把错误显示在输入框上方。
+ */
 const showViewerDashboard = () => {
-  return viewerStatus.value !== 'unconnected';
+  return (
+    sessionStarted.value &&
+    viewerStatus.value !== 'unconnected' &&
+    viewerStatus.value !== 'verifying'
+  );
 };
+
+/**
+ * 过期横幅的标题按原因区分：「人满」和「通道过期」是两件完全不同的事，
+ * 不能共用同一句话（HANDOFF-AUDIT §4.12 / 任务第 5 条）。
+ */
+const BANNER_TITLE_KEYS: Partial<Record<ViewerErrorKind, string>> = {
+  invalid_code: 'viewer.banner.invalid_code',
+  room_full: 'viewer.banner.room_full',
+  verify_failed: 'viewer.banner.verify_failed',
+};
+
+const bannerTitle = computed(() => {
+  const key = BANNER_TITLE_KEYS[viewerErrorKind.value] ?? 'viewer.banner.expired';
+  return t(key);
+});
 
 function translateError(err: string): string {
   return err.includes('.') ? t(err) : err;
@@ -65,17 +120,22 @@ function translateError(err: string): string {
 <template>
   <!-- ── Home: mode selection ── -->
   <div v-if="mode === 'home'" class="min-h-dvh bg-gray-50 dark:bg-gray-900 flex flex-col px-4">
+    <!-- 合规提示（第一层）：文档流首块，不覆盖内容；关闭仅本会话有效 -->
+    <LegalBanner @open-terms="openTerms" />
+
     <!--
       Theme + Language controls.
       原先用 absolute top-4 right-4 悬浮，在 320×568 这类矮屏上会直接压在居中的
       Logo/标题上（实测重叠）。改为占据文档流的独立一行，任何高度都不再重叠。
     -->
-    <div class="flex justify-end items-center gap-2 shrink-0 pt-[max(1rem,env(safe-area-inset-top))]">
+    <div
+      class="flex justify-end items-center gap-2 shrink-0 pt-[max(1rem,env(safe-area-inset-top))]"
+    >
       <!-- Language select：移动端 font-size ≥16px，否则 iOS 聚焦时会放大整页 -->
       <select
         :value="locale"
-        @change="setLocale(($event.target as HTMLSelectElement).value as 'zh' | 'en' | 'ja')"
         class="appearance-none text-base lg:text-sm font-medium pl-3 pr-8 py-2 rounded-xl bg-white dark:bg-gray-800 shadow-md hover:shadow-lg transition-all text-gray-600 dark:text-gray-300 cursor-pointer border-0 outline-none focus:ring-2 focus:ring-blue-500"
+        @change="setLocale(($event.target as HTMLSelectElement).value as 'zh' | 'en' | 'ja')"
       >
         <option v-for="loc in availableLocales" :key="loc" :value="loc">
           {{ localeLabels[loc] }}
@@ -117,9 +177,11 @@ function translateError(err: string): string {
           <BrandMark :size="80" pulse />
         </div>
         <h1 class="text-4xl sm:text-5xl font-bold text-gray-800 dark:text-gray-100 mb-3">
-          Live QR
+          {{ APP_NAME }}
         </h1>
-        <p class="text-base sm:text-lg text-gray-500 dark:text-gray-400">{{ t('home.subtitle') }}</p>
+        <p class="text-base sm:text-lg text-gray-500 dark:text-gray-400">
+          {{ t('home.subtitle') }}
+        </p>
       </div>
 
       <div class="grid grid-cols-1 sm:grid-cols-2 gap-4 sm:gap-6 w-full max-w-lg">
@@ -195,7 +257,7 @@ function translateError(err: string): string {
       </div>
     </div>
 
-    <FooterBar />
+    <FooterBar @open-terms="openTerms" />
   </div>
 
   <!-- ── Scanner mode ── -->
@@ -203,22 +265,27 @@ function translateError(err: string): string {
 
   <!-- ── Viewer mode: input ── -->
   <template v-if="mode === 'viewer' && !showViewerDashboard()">
-    <div class="min-h-dvh flex flex-col">
-      <div class="flex-1 flex items-center justify-center py-6">
+    <!-- 顶部 safe-area：避免刘海/灵动岛把输入卡片顶到状态栏下面 -->
+    <div class="min-h-dvh flex flex-col pt-[max(0.75rem,env(safe-area-inset-top))]">
+      <LegalBanner @open-terms="openTerms" />
+      <div class="flex-1 flex items-center justify-center pb-6">
         <ShareCodeInput
           :disabled="viewerStatus === 'verifying'"
+          :loading="viewerStatus === 'verifying'"
           :error="errorMessage"
+          :initial-code="submittedCode"
           @submit="handleConnect"
           @back="mode = 'home'"
         />
       </div>
-      <FooterBar />
+      <FooterBar @open-terms="openTerms" />
     </div>
   </template>
 
   <!-- ── Viewer mode: dashboard ── -->
   <template v-if="mode === 'viewer' && showViewerDashboard()">
     <div class="min-h-dvh bg-gray-50 dark:bg-gray-900 flex flex-col">
+      <LegalBanner @open-terms="openTerms" />
       <!-- Header bar -->
       <header
         class="bg-white dark:bg-gray-800 shadow-sm border-b border-gray-200 dark:border-gray-700"
@@ -275,10 +342,10 @@ function translateError(err: string): string {
               <!-- Language switcher -->
               <select
                 :value="locale"
+                class="appearance-none text-base lg:text-sm font-medium pl-1.5 pr-6 py-2.5 rounded-lg bg-transparent hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors text-gray-600 dark:text-gray-300 cursor-pointer border-0 outline-none focus:ring-2 focus:ring-blue-500"
                 @change="
                   setLocale(($event.target as HTMLSelectElement).value as 'zh' | 'en' | 'ja')
                 "
-                class="appearance-none text-base lg:text-xs font-medium pl-1.5 pr-6 py-2.5 rounded-lg bg-transparent hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors text-gray-600 dark:text-gray-300 cursor-pointer border-0 outline-none focus:ring-2 focus:ring-blue-500"
               >
                 <option v-for="loc in availableLocales" :key="loc" :value="loc">
                   {{ localeLabels[loc] }}
@@ -343,7 +410,7 @@ function translateError(err: string): string {
         >
           <div class="min-w-0 flex-1">
             <p class="text-red-700 dark:text-red-400 font-medium">
-              {{ t('viewer.expiredBanner') }}
+              {{ bannerTitle }}
             </p>
             <p class="text-red-500 dark:text-red-400/80 text-sm">
               {{ errorMessage ? translateError(errorMessage) : '' }}
@@ -374,7 +441,16 @@ function translateError(err: string): string {
         </div>
       </main>
 
-      <FooterBar />
+      <FooterBar @open-terms="openTerms" />
     </div>
   </template>
+
+  <!-- 合规弹窗（第二/三层）：置于最后，DOM 顺序 + z-index 保证条款弹窗叠在首确认之上 -->
+  <LegalConsentDialog
+    :open="consentOpen"
+    @agree="agreeLegal"
+    @open-terms="openTerms"
+    @close="dismissConsent"
+  />
+  <LegalTermsDialog :open="termsOpen" @close="closeTerms" />
 </template>
