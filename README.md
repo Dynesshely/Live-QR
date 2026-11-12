@@ -1,7 +1,5 @@
 <p align="center">
-  <a href="https://qr-live.cxs.apps.dynesshely.top">
-    <img src="assets/logo.svg" width="112" height="112" alt="Live QR" />
-  </a>
+  <a href="https://qr-live.cxs.apps.dynesshely.top"><img src="assets/logo.svg" width="112" height="112" alt="Live QR" /></a>
 </p>
 
 <h1 align="center">Live QR</h1>
@@ -31,36 +29,16 @@
 </p>
 
 <p align="center">
-  <a href="https://github.com/Dynesshely/Live-QR/stargazers">
-    <img src="https://img.shields.io/github/stars/Dynesshely/Live-QR?style=flat-square&logo=github&logoColor=white" alt="GitHub stars" />
-  </a>
-  <a href="LICENSE">
-    <img src="https://img.shields.io/badge/license-AGPL--3.0-blue?style=flat-square" alt="License: AGPL-3.0" />
-  </a>
-  <a href="https://github.com/Dynesshely/Live-QR/actions/workflows/ci.yml">
-    <img src="https://github.com/Dynesshely/Live-QR/actions/workflows/ci.yml/badge.svg" alt="CI" />
-  </a>
-  <a href="https://nodejs.org/">
-    <img src="https://img.shields.io/badge/Node.js-%E2%89%A522-339933?style=flat-square&logo=node.js&logoColor=white" alt="Node.js ≥ 22" />
-  </a>
-  <a href="https://www.typescriptlang.org/">
-    <img src="https://img.shields.io/badge/TypeScript-5.9-3178C6?style=flat-square&logo=typescript&logoColor=white" alt="TypeScript 5.9" />
-  </a>
-  <a href="https://vuejs.org/">
-    <img src="https://img.shields.io/badge/Vue-3-42B883?style=flat-square&logo=vue.js&logoColor=white" alt="Vue 3" />
-  </a>
-  <a href="https://expressjs.com/">
-    <img src="https://img.shields.io/badge/Express-5-000000?style=flat-square&logo=express&logoColor=white" alt="Express 5" />
-  </a>
-  <a href="https://tailwindcss.com/">
-    <img src="https://img.shields.io/badge/Tailwind_CSS-4-06B6D4?style=flat-square&logo=tailwindcss&logoColor=white" alt="Tailwind CSS 4" />
-  </a>
-  <a href="https://vite.dev/">
-    <img src="https://img.shields.io/badge/Vite-6-646CFF?style=flat-square&logo=vite&logoColor=white" alt="Vite 6" />
-  </a>
-  <a href="https://docs.docker.com/">
-    <img src="https://img.shields.io/badge/Docker-ready-2496ED?style=flat-square&logo=docker&logoColor=white" alt="Docker" />
-  </a>
+  <a href="https://github.com/Dynesshely/Live-QR/stargazers"><img src="https://img.shields.io/github/stars/Dynesshely/Live-QR?style=flat-square&logo=github&logoColor=white" alt="GitHub stars" /></a>
+  <a href="LICENSE"><img src="https://img.shields.io/badge/license-AGPL--3.0-blue?style=flat-square" alt="License: AGPL-3.0" /></a>
+  <a href="https://github.com/Dynesshely/Live-QR/actions/workflows/ci.yml"><img src="https://github.com/Dynesshely/Live-QR/actions/workflows/ci.yml/badge.svg" alt="CI" /></a>
+  <a href="https://nodejs.org/"><img src="https://img.shields.io/badge/Node.js-%E2%89%A522-339933?style=flat-square&logo=node.js&logoColor=white" alt="Node.js ≥ 22" /></a>
+  <a href="https://www.typescriptlang.org/"><img src="https://img.shields.io/badge/TypeScript-5.9-3178C6?style=flat-square&logo=typescript&logoColor=white" alt="TypeScript 5.9" /></a>
+  <a href="https://vuejs.org/"><img src="https://img.shields.io/badge/Vue-3-42B883?style=flat-square&logo=vue.js&logoColor=white" alt="Vue 3" /></a>
+  <a href="https://expressjs.com/"><img src="https://img.shields.io/badge/Express-5-000000?style=flat-square&logo=express&logoColor=white" alt="Express 5" /></a>
+  <a href="https://tailwindcss.com/"><img src="https://img.shields.io/badge/Tailwind_CSS-4-06B6D4?style=flat-square&logo=tailwindcss&logoColor=white" alt="Tailwind CSS 4" /></a>
+  <a href="https://vite.dev/"><img src="https://img.shields.io/badge/Vite-6-646CFF?style=flat-square&logo=vite&logoColor=white" alt="Vite 6" /></a>
+  <a href="https://docs.docker.com/"><img src="https://img.shields.io/badge/Docker-ready-2496ED?style=flat-square&logo=docker&logoColor=white" alt="Docker" /></a>
 </p>
 
 ---
@@ -348,9 +326,7 @@ Docker 部署：把 `.env.example` 复制到**仓库根**的 `.env`（compose �
 ## Star History
 
 <p align="center">
-  <a href="https://star-history.com/#Dynesshely/Live-QR&Date">
-    <img src="https://api.star-history.com/svg?repos=Dynesshely/Live-QR&type=Date&theme=dark" alt="Star History Chart" width="640" />
-  </a>
+  <a href="https://star-history.com/#Dynesshely/Live-QR&Date"><img src="https://api.star-history.com/svg?repos=Dynesshely/Live-QR&type=Date&theme=dark" alt="Star History Chart" width="640" /></a>
 </p>
 
 ## 许可与声明
